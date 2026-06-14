@@ -1,0 +1,68 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Build directory (CMake outputs)
+build/
+bench/results/
+bin/
+lib/
+CMakeFiles/
+CMakeCache.txt
+Makefile
+cmake_install.cmake
+install_manifest.txt
+
+# IDEs and editors
+.idea/
+.vscode/
+.vs/
+.zed/
+*.suo
+*.user
+*.userossc
+*.sln
+*.vcxproj
+*.filters
+
+# C++ Language Server (clangd) cache and compile database
+.clangd/
+compile_commands.json
+
+# OS-generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
