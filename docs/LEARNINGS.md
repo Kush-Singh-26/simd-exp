@@ -2,7 +2,7 @@
 
 ## Overview
 
-Five benchmarks exploring AVX2 SIMD intrinsics, Google Benchmark setup, and performance analysis.
+Eight benchmarks exploring AVX2 SIMD intrinsics, Google Benchmark setup, and performance analysis. Covers element-wise ops (abs, clamp, relu), reductions (sum, dot_prod), softmax variants, and a shared SIMD math library (`math_utils`).
 
 ---
 
@@ -171,6 +171,138 @@ Sum an array of 1M floats. Scalar vs SIMD (AVX).
 
 ---
 
+## 6. `softmax_bench` — Standard 3-Pass Softmax
+
+### What it does
+`softmax(x_i) = exp(x_i - max) / Σ exp(x_j - max)` over an array. Three versions: scalar, SIMD (storeu), SIMD (NT store). Tested with positive, negative, and random data distributions.
+
+### Algorithm (3 passes)
+
+1. **Pass 1 — Find max**: horizontal max across all elements
+2. **Pass 2 — Exp and sum**: compute `exp(x_i - max)` for each element, accumulate sum
+3. **Pass 3 — Normalize**: multiply each element by `1/sum`
+
+### Intrinsics introduced
+| Intrinsic | Purpose |
+|---|---|
+| `_mm256_max_ps(a, b)` | Vector max (find global max) |
+| `_mm256_sub_ps(a, b)` | Subtract max from each element |
+| `avx2_exp_ps(x)` | SIMD exp approximation (< 3 ULP) |
+| `_mm256_add_ps(a, b)` | Accumulate exp sum |
+| `_mm256_mul_ps(a, b)` | Normalize by reciprocal |
+| `_mm256_extractf128_ps(v, 1)` | Extract high 128 bits for horizontal reduction |
+| `_mm_movehl_ps(a, b)` | Horizontal max/sum reduction |
+| `_mm_movehdup_ps(v)` | Horizontal max/sum reduction |
+| `_mm_cvtss_f32(v)` | Extract scalar result |
+| `_mm256_stream_ps(ptr, v)` | NT store (softmax_nt) |
+
+### Results (1M elements)
+
+| Version | All Positive | All Negative | Random |
+|---|---|---|---|
+| **Scalar** | 21.53 ms | 12.23 ms | 14.09 ms |
+| **SIMD** | 2.31 ms | 3.28 ms | 4.31 ms |
+| **SIMD NT** | 3.35 ms | 4.28 ms | 4.96 ms |
+| **Speedup (SIMD)** | **9.3x** | **3.7x** | **3.3x** |
+
+### Learnings
+
+- **SIMD exp is the bottleneck** — each element requires `avx2_exp_ps` (~15 instructions), making softmax **compute-bound** rather than memory-bound. This is why SIMD speedup is high (9.3x for positive data) despite reading/writing the full array 3 times.
+- **3-pass vs 2-pass** — the standard softmax requires 3 passes over the data (find max, compute exp+sum, normalize). For large arrays, this means 3× memory traffic. Online softmax (below) reduces this to 2 passes.
+- **Data distribution matters** — positive data is fastest because the SIMD loop processes more efficiently (no branch divergence in horizontal reductions). Negative data is slower because `exp(x - max)` produces smaller values, and the horizontal sum has more denormal-like values.
+- **NT stores hurt softmax** — unlike clamp/abs where NT saves ~40%, NT softmax is **slower** because the normalization pass reads `dst` back (non-temporal write + normal read = wasted RFO). NT is only beneficial when `dst` is write-once.
+- **Horizontal reductions are expensive** — the max and sum reductions use 4 instructions each (extract, movehl, movehdup, cvtss). This is unavoidable for SIMD reductions but dominates at small sizes.
+
+---
+
+## 7. `online_softmax_bench` — Online (2-Pass) Softmax
+
+### What it does
+Same softmax computation, but uses the **online algorithm** that computes max and sum in a single pass, reducing from 3 passes to 2.
+
+### Algorithm (2 passes)
+
+**Pass 1 — Online max/sum** (streaming):
+```
+for each chunk of 8 elements:
+    new_max = max(old_max, chunk_max)
+    correction = exp(old_max - new_max)
+    sum = sum * correction + sum(chunk_exp)
+    old_max = new_max
+```
+
+**Pass 2 — Compute exp and normalize**:
+```
+for each element:
+    dst[i] = exp(src[i] - global_max) / global_sum
+```
+
+### Key optimization: correction factor blend
+
+When the max doesn't change within a chunk, `correction = exp(old_max - new_max) = exp(0) = 1.0`. The blend optimization skips the correction exp:
+
+```cpp
+__m256 v_mask = _mm256_cmp_ps(v_m, v_m_prev, _CMP_NEQ_OQ);
+__m256 v_correction_exp = avx2_exp_ps(_mm256_sub_ps(v_m_prev, v_m));
+v_correction_factor = _mm256_blendv_ps(v_correction_factor, v_correction_exp, v_mask);
+```
+
+- `_mm256_cmp_ps` — compares old_max vs new_max per lane
+- `_mm256_blendv_ps` — selects 1.0 (no change) or `exp(old - new)` (max changed) per lane
+
+This saves an `avx2_exp_ps` call (~15 instructions) when the max is stable.
+
+### Results (1M elements)
+
+| Version | All Positive | All Negative | Random |
+|---|---|---|---|
+| **Scalar** | 34.73 ms | 20.45 ms | 26.29 ms |
+| **SIMD** | 6.60 ms | 5.14 ms | 5.04 ms |
+| **Speedup** | **5.3x** | **4.0x** | **5.2x** |
+
+### Learnings
+
+- **2-pass saves memory traffic** — online softmax reads the array twice (pass 1 + pass 2) instead of three times (max, exp+sum, normalize). For memory-bound scenarios, this is a significant improvement.
+- **Online softmax is slower than plain softmax SIMD** — despite fewer passes, online softmax has higher per-element cost in pass 1: it computes `exp(old_max - new_max)` for correction, which is an `avx2_exp_ps` call per chunk. For 1M elements: plain softmax SIMD takes 2.31ms (pos) vs online takes 6.60ms (pos). The extra exp computation outweighs the pass reduction.
+- **When online wins** — online softmax is designed for **fused attention** where you process tokens incrementally and can't afford to re-scan the entire sequence. In a transformer decoder, each new token's softmax can update the running max/sum without re-processing all previous tokens. The 2-pass structure enables this streaming pattern.
+- **Correction factor blend is effective** — for positive data, most chunks don't update the global max, so the blend optimization skips the correction exp. This is why positive data (6.60ms) is slower than random (5.04ms) — random data has more max updates, but the blend optimization handles it efficiently.
+- **Horizontal reductions in pass 1** — same cost as plain softmax (extract, shuffle, add). The online algorithm adds ~5 extra instructions per chunk (correction exp, blend, multiply-accumulate) vs the plain 3-pass approach.
+
+---
+
+## 8. `math_utils_test` — SIMD exp Accuracy
+
+### What it does
+Verifies `avx2_exp_ps` accuracy against `std::exp` across 7 test categories.
+
+### Test coverage
+
+| Test | What it verifies |
+|---|---|
+| KnownValues | 8 specific values (0, ±1, ±2, ±0.5, ln(2)) — < 3 ULP each |
+| PositiveRange | 0 to 87 in 0.7 steps — scans entire positive domain |
+| NegativeRange | 0 to -87 in 0.7 steps — scans entire negative domain |
+| LargeValues | 88, -88, 88.3, -88.3 — boundary clamping behavior |
+| SubnormalFlushToZero | -100, -95, -90, -89 — verifies subnormal → 0 |
+| RandomData | 1024 random values in [-10, 10] — max ULP across batch |
+| BatchComparison | 8 random values — relative error < 1e-6 |
+
+### Key results
+
+- Max ULP error across 1024 random values: **< 3 ULP**
+- Max relative error: **~1.08e-07**
+- Subnormal inputs (`x < -88.37`): correctly flushed to 0
+- Boundary values: clamp behavior verified (88.3 → inf, -88.3 → 0)
+
+### Learnings
+
+- **Estrin vs Horner ILP** — the Estrin scheme reduces critical path from 7 FMAs (Horner, ~28 cycles) to 4 FMAs (~16 cycles) by exposing 3 independent FMAs at Level 0. The trade-off is 2 extra multiplies for x² and x⁴, but these issue in parallel with Level 0 FMAs.
+- **Cody-Waite is essential** — without the two-step range reduction, the single-step `x - n*ln2` loses ~6 bits of precision due to catastrophic cancellation. The HI/LO split of ln2 ensures r is accurate to full float precision.
+- **`cvtps_epi32` vs `floor`** — round-to-nearest gives symmetric reduction interval `[-ln2/2, ln2/2]` centered at 0, which minimizes polynomial error. Floor gives `[0, ln2)` which is asymmetric and requires different polynomial coefficients.
+- **Testing strategy** — the 7-test suite covers: specific values, entire domain sweep, boundary conditions, subnormal behavior, and statistical random testing. This is more thorough than a simple random test because it catches edge cases at domain boundaries.
+
+---
+
 ## Cross-Cutting Observations
 
 ### Memory-bound vs Compute-bound
@@ -178,24 +310,28 @@ Sum an array of 1M floats. Scalar vs SIMD (AVX).
 | Operation | Bytes per element | Bottleneck | Max Speedup |
 |---|---|---|---|
 | Sum (reduction) | 4 (read) | Memory | 3-4x |
-| Dot product (1 acc) | 8 (read) | FMA latency | 2x |
 | Dot product (4 acc) | 8 (read) | Compute | 8.8x |
 | Clamp (store) | 8 (read+write) | Memory | 4-6x |
 | ReLU (store) | 8 (read+write) | Memory | 4-5x |
 | Abs (store) | 8 (read+write) | Memory | 3.5-4.5x |
+| **Softmax (3-pass)** | **24 (3×8, read+write)** | **Compute (exp)** | **3-9x** |
+| **Online Softmax (2-pass)** | **16 (2×8, read+write)** | **Compute (exp+blend)** | **4-5x** |
+
+Softmax is the only **compute-bound** operation in the library — the SIMD exp (~15 instr/element) dominates, not memory bandwidth. Online softmax has fewer passes but higher per-element cost in pass 1.
 
 ### Non-temporal stores
 
 - **When to use**: large arrays (>L3 cache) where `dst` is written but not read back
-- **When to avoid**: small arrays (<L2 cache) where data fits in cache
+- **When to avoid**: small arrays (<L2 cache) or when `dst` is read back (e.g., softmax normalization)
 - **Mechanism**: eliminates read-for-ownership (RFO) — the cache-line load preceding every normal store
-- **Trade-off**: requires 32-byte aligned destination (`_mm_malloc`)
+- **Trade-off**: requires 32-byte aligned destination (`simd::aligned_alloc`)
+- **Softmax NT is slower** — the normalization pass reads `dst`, defeating the NT purpose
 
 ### Branch Misprediction
 
 - Scalar ternary with unpredictable data can be 5-7x slower than predictable data
 - SIMD `max`/`min`/`andnot` are unconditional — same speed for any input
-- The effect is most visible at default optimization (no `-O3` auto-vectorization)
+- Online softmax blend optimization uses `_mm256_cmp_ps` + `_mm256_blendv_ps` — branchless max detection
 
 ### Common Patterns
 
@@ -206,13 +342,13 @@ Sum an array of 1M floats. Scalar vs SIMD (AVX).
 | Load (aligned) | `_mm256_load_ps(ptr)` — requires `alignas(32)` |
 | Store (normal) | `_mm256_storeu_ps(ptr, v)` |
 | Store (NT) | `_mm256_stream_ps(ptr, v)` — requires aligned `ptr` |
-| Reduction (sum) | permute → hadd → hadd → extract |
+| Horizontal max | extractf128 → max_ps → movehl → movehdup → cvtss |
+| Horizontal sum | extractf128 → add_ps → movehl → movehdup → cvtss |
 | FMA | `_mm256_fmadd_ps(a, b, c)` |
 | Clamp | `max(min(x, hi), lo)` |
 | ReLU | `max(x, 0)` |
 | Abs | `andnot(sign_mask, x)` |
-| Negate | `xor(sign_mask, x)` |
-| -|x| | `or(sign_mask, x)` or `andnot(sign_mask, xor(x, sign_mask))` |
+| Blend (branchless) | `_mm256_cmp_ps` + `_mm256_blendv_ps` |
 
 ---
 
@@ -220,25 +356,31 @@ Sum an array of 1M floats. Scalar vs SIMD (AVX).
 
 ```bash
 # Single benchmark
-cmake --build build --target sum_bench && ./build/sum_bench
+cmake --build build --target softmax_bench && ./build/softmax_bench
 
 # All benchmarks
 cmake --build build --target run_all
 
 # Filter specific benchmark
 ./build/relu_bench --benchmark_filter=rand
-./build/clamp_bench --benchmark_repetitions=5 --benchmark_display_aggregates_only=true
+./build/softmax_bench --benchmark_repetitions=5 --benchmark_display_aggregates_only=true
+
+# Run specific test
+./build/math_utils_test --gtest_filter=MathUtilsTest.RandomData
+
+# Run all tests
+ctest --test-dir build --output-on-failure
 ```
 
 ## Tooling
 
 ```bash
 # Quick perf analysis
-perf stat ./build/sum_bench
+perf stat ./build/softmax_bench
 
 # Disassemble to check for auto-vectorization
-objdump -d build/sum_bench | grep -E '(vandps|vmaxps|vfmadd)'
+objdump -d build/softmax_bench | grep -E '(vfmadd|vmaxps|vmovups)'
 
 # Check compiler optimization reports
-g++ -O3 -mavx2 -mfma -fopt-info-vec-optimized bench/sum_bench.cpp -S -o /dev/null
+g++ -O3 -mavx2 -mfma -fopt-info-vec-optimized bench/softmax_bench.cpp -S -o /dev/null
 ```

@@ -33,7 +33,6 @@
 
 # Build directory (CMake outputs)
 build/
-bench/results/
 bin/
 lib/
 CMakeFiles/

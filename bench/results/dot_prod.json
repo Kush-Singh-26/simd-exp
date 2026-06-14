@@ -1,0 +1,127 @@
+{
+  "context": {
+    "date": "2026-06-14T11:02:51+05:30",
+    "host_name": "kush",
+    "executable": "./dot_prod",
+    "num_cpus": 12,
+    "mhz_per_cpu": 1700,
+    "cpu_scaling_enabled": true,
+    "aslr_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 49152,
+        "num_sharing": 2
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 1310720,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 12582912,
+        "num_sharing": 12
+      }
+    ],
+    "load_avg": [5.37988,4.06152,3.04053],
+    "library_version": "1.9.5",
+    "library_build_type": "release",
+    "json_schema_version": 1
+  },
+  "benchmarks": [
+    {
+      "name": "BM_Dot_Prod_Scalar/1048576",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "BM_Dot_Prod_Scalar/1048576",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 221,
+      "real_time": 2.5970126289929096e+06,
+      "cpu_time": 2.5519768009049776e+06,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Dot_Prod_Scalar/4096",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "BM_Dot_Prod_Scalar/4096",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 67902,
+      "real_time": 8.8295608812746741e+03,
+      "cpu_time": 8.7323934788371480e+03,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Dot_Prod_Scalar/1024",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "BM_Dot_Prod_Scalar/1024",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 352999,
+      "real_time": 2.1601627058952245e+03,
+      "cpu_time": 2.1389887563420857e+03,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Dot_Prod_Simd/1048576",
+      "family_index": 1,
+      "per_family_instance_index": 0,
+      "run_name": "BM_Dot_Prod_Simd/1048576",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 584,
+      "real_time": 1.2283083852795144e+06,
+      "cpu_time": 1.2020446113013700e+06,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Dot_Prod_Simd/4096",
+      "family_index": 1,
+      "per_family_instance_index": 1,
+      "run_name": "BM_Dot_Prod_Simd/4096",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1078165,
+      "real_time": 6.3040914425031303e+02,
+      "cpu_time": 6.2432362579011533e+02,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Dot_Prod_Simd/1024",
+      "family_index": 1,
+      "per_family_instance_index": 2,
+      "run_name": "BM_Dot_Prod_Simd/1024",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 4747582,
+      "real_time": 1.7557658193082986e+02,
+      "cpu_time": 1.7309241209525186e+02,
+      "time_unit": "ns"
+    }
+  ]
+}

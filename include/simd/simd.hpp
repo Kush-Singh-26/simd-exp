@@ -9,6 +9,6 @@
 #include "ops/relu/relu.hpp"
 #include "ops/softmax/softmax.hpp"
 #include "ops/sum/sum.hpp"
-#include "ops/online-softmax/online-softmax.hpp"
+#include "ops/online_softmax/online_softmax.hpp"
 // IWYU pragma: end_exports
 

@@ -43,11 +43,12 @@ inline void sigmoid_scalar(const float* src, float* dst, size_t n) {
 ```
 
 ### B. `simd.hpp` (Intrinsics Code)
-Define the optimized SIMD path inside `simd::impl`, guarded by `SIMD_AVX2_ENABLED` (which is defined in `common.hpp`). Provide standard unaligned stores and optional non-temporal stream implementations. Always implement a scalar loop to handle any remaining tail elements.
+Define the optimized SIMD path inside `simd::impl`, guarded by `SIMD_AVX2_ENABLED` (which is defined in `common.hpp`). Include `math_utils.hpp` if your operation needs SIMD exp (e.g., softmax, sigmoid). Provide standard unaligned stores and optional non-temporal stream implementations. Always implement a scalar loop to handle any remaining tail elements.
 
 ```cpp
 #pragma once
 #include "../../common.hpp"
+#include "../../math_utils.hpp"  // for avx2_exp_ps (if needed)
 #include <cmath>
 #include <cstddef>
 
@@ -64,8 +65,8 @@ inline void sigmoid_simd(const float* src, float* dst, size_t n) {
         __m256 x = _mm256_loadu_ps(src + i);
         
         // (Perform SIMD operations here...)
-        // For example:
-        // __m256 exp_neg_x = avx2_exp_ps(_mm256_sub_ps(_mm256_setzero_ps(), x));
+        // For example (using math_utils.hpp):
+        // __m256 exp_neg_x = simd::impl::avx2_exp_ps(_mm256_sub_ps(_mm256_setzero_ps(), x));
         // __m256 denom = _mm256_add_ps(one, exp_neg_x);
         // __m256 result = _mm256_div_ps(one, denom);
         
@@ -125,7 +126,7 @@ Once your headers are created, make the operation globally available by adding i
 
 ## 4. Benchmarking the New Operation
 
-Create a new benchmark file under `bench/` to verify performance characteristics against the scalar reference:
+Create a new benchmark file under `bench/` to verify performance characteristics against the scalar reference. Use the shared data generation utilities from `bench/bench_utils.hpp`:
 
 **`bench/sigmoid_bench.cpp`**:
 ```cpp
@@ -133,35 +134,42 @@ Create a new benchmark file under `bench/` to verify performance characteristics
 #include <simd/simd.hpp>
 #include <vector>
 #include <cstddef>
+#include "bench_utils.hpp"
 
-static void BM_Sigmoid_Scalar(benchmark::State& state) {
+static void BM_Sigmoid_Scalar(benchmark::State& state, DataType dtype) {
   size_t n = state.range(0);
-  std::vector<float> src(n, 1.0f);
+  std::vector<float> src(n);
+  gen_data_random(src, dtype);
   std::vector<float> dst(n);
   for (auto _ : state) {
     simd::impl::sigmoid_scalar(src.data(), dst.data(), n);
     benchmark::DoNotOptimize(dst.data());
   }
 }
-BENCHMARK(BM_Sigmoid_Scalar)->Arg(1<<20);
+BENCHMARK_CAPTURE(BM_Sigmoid_Scalar, pos, DataType::POS)->Arg(1<<20);
+BENCHMARK_CAPTURE(BM_Sigmoid_Scalar, neg, DataType::NEG)->Arg(1<<20);
+BENCHMARK_CAPTURE(BM_Sigmoid_Scalar, rand, DataType::RAND)->Arg(1<<20);
 
 #if defined(SIMD_AVX2_ENABLED)
-static void BM_Sigmoid_Simd(benchmark::State& state) {
+static void BM_Sigmoid_Simd(benchmark::State& state, DataType dtype) {
   size_t n = state.range(0);
-  std::vector<float> src(n, 1.0f);
+  std::vector<float> src(n);
+  gen_data_random(src, dtype);
   std::vector<float> dst(n);
   for (auto _ : state) {
     simd::impl::sigmoid_simd(src.data(), dst.data(), n);
     benchmark::DoNotOptimize(dst.data());
   }
 }
-BENCHMARK(BM_Sigmoid_Simd)->Arg(1<<20);
+BENCHMARK_CAPTURE(BM_Sigmoid_Simd, pos, DataType::POS)->Arg(1<<20);
+BENCHMARK_CAPTURE(BM_Sigmoid_Simd, neg, DataType::NEG)->Arg(1<<20);
+BENCHMARK_CAPTURE(BM_Sigmoid_Simd, rand, DataType::RAND)->Arg(1<<20);
 #endif
 
 BENCHMARK_MAIN();
 ```
 
-Your benchmark is automatically picked up by the globbing pattern in `CMakeLists.txt` and compiled into a standalone executable.
+Your benchmark is automatically picked up by the globbing pattern in `CMakeLists.txt` and compiled into a standalone executable. Use `gen_data_random` for softmax-like operations (random data) and `gen_data_const` for element-wise ops (constant values).
 
 ---
 

@@ -8,6 +8,12 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 find_package(benchmark REQUIRED)
 
+include(FetchContent)
+FetchContent_Declare(googletest
+  GIT_REPOSITORY https://github.com/google/googletest.git
+  GIT_TAG v1.14.0)
+FetchContent_MakeAvailable(googletest)
+
 # Expose header-only library directory
 add_library(simd INTERFACE)
 target_include_directories(simd INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -34,4 +40,15 @@ foreach(name ${BENCH_TARGETS})
       --benchmark_format=json
       --benchmark_counters_tabular=true
   )
+endforeach()
+
+enable_testing()
+
+file(GLOB TEST_SOURCES CONFIGURE_DEPENDS test/*.cpp)
+foreach(src ${TEST_SOURCES})
+  get_filename_component(name ${src} NAME_WE)
+  add_executable(${name} ${src})
+  target_link_libraries(${name} PRIVATE simd GTest::gtest_main)
+  target_compile_options(${name} PRIVATE -mavx2 -mfma -O3)
+  add_test(NAME ${name} COMMAND ${name})
 endforeach()

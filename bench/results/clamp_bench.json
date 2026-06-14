@@ -1,0 +1,169 @@
+{
+  "context": {
+    "date": "2026-06-14T11:02:43+05:30",
+    "host_name": "kush",
+    "executable": "./clamp_bench",
+    "num_cpus": 12,
+    "mhz_per_cpu": 1700,
+    "cpu_scaling_enabled": true,
+    "aslr_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 49152,
+        "num_sharing": 2
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 1310720,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 12582912,
+        "num_sharing": 12
+      }
+    ],
+    "load_avg": [5.72607,4.08105,3.03564],
+    "library_version": "1.9.5",
+    "library_build_type": "release",
+    "json_schema_version": 1
+  },
+  "benchmarks": [
+    {
+      "name": "BM_Clamp_Scalar/1048576",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "BM_Clamp_Scalar/1048576",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 306,
+      "real_time": 1.9134717778107941e+06,
+      "cpu_time": 1.8730890653594774e+06,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Clamp_Scalar/4096",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "BM_Clamp_Scalar/4096",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 144216,
+      "real_time": 4.2168077467148760e+03,
+      "cpu_time": 4.1757643465357514e+03,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Clamp_Scalar/1024",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "BM_Clamp_Scalar/1024",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2545229,
+      "real_time": 2.3361146363373481e+02,
+      "cpu_time": 2.3156729040883945e+02,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Clamp_Simd/1048576",
+      "family_index": 1,
+      "per_family_instance_index": 0,
+      "run_name": "BM_Clamp_Simd/1048576",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 458,
+      "real_time": 1.4466690304983961e+06,
+      "cpu_time": 1.4173419366812224e+06,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Clamp_Simd/4096",
+      "family_index": 1,
+      "per_family_instance_index": 1,
+      "run_name": "BM_Clamp_Simd/4096",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 146858,
+      "real_time": 4.0823946671710091e+03,
+      "cpu_time": 4.0473011003826859e+03,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Clamp_Simd/1024",
+      "family_index": 1,
+      "per_family_instance_index": 2,
+      "run_name": "BM_Clamp_Simd/1024",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2267645,
+      "real_time": 2.7324916423676410e+02,
+      "cpu_time": 2.7011156816873898e+02,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Clamp_Simd_NT/1048576",
+      "family_index": 2,
+      "per_family_instance_index": 0,
+      "run_name": "BM_Clamp_Simd_NT/1048576",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 498,
+      "real_time": 1.2666246827820831e+06,
+      "cpu_time": 1.2414754959839350e+06,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Clamp_Simd_NT/4096",
+      "family_index": 2,
+      "per_family_instance_index": 1,
+      "run_name": "BM_Clamp_Simd_NT/4096",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 89536,
+      "real_time": 6.0982846674579496e+03,
+      "cpu_time": 6.0052686405468221e+03,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Clamp_Simd_NT/1024",
+      "family_index": 2,
+      "per_family_instance_index": 2,
+      "run_name": "BM_Clamp_Simd_NT/1024",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1004830,
+      "real_time": 7.5092054775231759e+02,
+      "cpu_time": 7.3762472856104966e+02,
+      "time_unit": "ns"
+    }
+  ]
+}

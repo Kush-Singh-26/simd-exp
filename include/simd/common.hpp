@@ -10,6 +10,7 @@
 #endif
 
 #include <cstdlib>
+#include <new>
 
 namespace simd {
 

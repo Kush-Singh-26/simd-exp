@@ -1,0 +1,169 @@
+{
+  "context": {
+    "date": "2026-06-14T11:02:57+05:30",
+    "host_name": "kush",
+    "executable": "./mat_transpose_bench",
+    "num_cpus": 12,
+    "mhz_per_cpu": 1700,
+    "cpu_scaling_enabled": true,
+    "aslr_enabled": false,
+    "caches": [
+      {
+        "type": "Data",
+        "level": 1,
+        "size": 49152,
+        "num_sharing": 2
+      },
+      {
+        "type": "Instruction",
+        "level": 1,
+        "size": 32768,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 2,
+        "size": 1310720,
+        "num_sharing": 2
+      },
+      {
+        "type": "Unified",
+        "level": 3,
+        "size": 12582912,
+        "num_sharing": 12
+      }
+    ],
+    "load_avg": [5.18896,4.04346,3.04004],
+    "library_version": "1.9.5",
+    "library_build_type": "release",
+    "json_schema_version": 1
+  },
+  "benchmarks": [
+    {
+      "name": "BM_Transpose_Scalar/16384",
+      "family_index": 0,
+      "per_family_instance_index": 0,
+      "run_name": "BM_Transpose_Scalar/16384",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2878,
+      "real_time": 1.9651002502534859e+05,
+      "cpu_time": 1.9420551563585823e+05,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Transpose_Scalar/1024",
+      "family_index": 0,
+      "per_family_instance_index": 1,
+      "run_name": "BM_Transpose_Scalar/1024",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 100401,
+      "real_time": 5.9072099279057338e+03,
+      "cpu_time": 5.8576054521369324e+03,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Transpose_Scalar/64",
+      "family_index": 0,
+      "per_family_instance_index": 2,
+      "run_name": "BM_Transpose_Scalar/64",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2734888,
+      "real_time": 2.8615388929172792e+02,
+      "cpu_time": 2.8282399571755769e+02,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Transpose_Simd/16384",
+      "family_index": 1,
+      "per_family_instance_index": 0,
+      "run_name": "BM_Transpose_Simd/16384",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2901,
+      "real_time": 2.2263955498648429e+05,
+      "cpu_time": 2.1886689796621859e+05,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Transpose_Simd/1024",
+      "family_index": 1,
+      "per_family_instance_index": 1,
+      "run_name": "BM_Transpose_Simd/1024",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 87463,
+      "real_time": 7.7457314863972742e+03,
+      "cpu_time": 7.6382071847524057e+03,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Transpose_Simd/64",
+      "family_index": 1,
+      "per_family_instance_index": 2,
+      "run_name": "BM_Transpose_Simd/64",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2184613,
+      "real_time": 3.2546657555616281e+02,
+      "cpu_time": 3.2134778974582690e+02,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Transpose_Simd_NT/16384",
+      "family_index": 2,
+      "per_family_instance_index": 0,
+      "run_name": "BM_Transpose_Simd_NT/16384",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2234,
+      "real_time": 2.4972034152076082e+05,
+      "cpu_time": 2.4581234646374217e+05,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Transpose_Simd_NT/1024",
+      "family_index": 2,
+      "per_family_instance_index": 1,
+      "run_name": "BM_Transpose_Simd_NT/1024",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 45705,
+      "real_time": 1.2419993765330226e+04,
+      "cpu_time": 1.2192237523246915e+04,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Transpose_Simd_NT/64",
+      "family_index": 2,
+      "per_family_instance_index": 2,
+      "run_name": "BM_Transpose_Simd_NT/64",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 1027249,
+      "real_time": 6.4459665083735388e+02,
+      "cpu_time": 6.3860503928453636e+02,
+      "time_unit": "ns"
+    }
+  ]
+}

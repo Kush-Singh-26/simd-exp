@@ -57,9 +57,9 @@ inline float exp_sub_max_simd(const float* src, float* dst, size_t n) {
 }
 
 inline void softmax_simd(const float* src, float* dst, size_t n) {
+    if (n == 0) return;
     float exp_sum = exp_sub_max_simd(src, dst, n);
 
-    // reciprocal
     __m256 vrcp = _mm256_set1_ps(1.0f / exp_sum);
     size_t i = 0;
     for (; i + 8 <= n; i += 8) {
@@ -114,6 +114,7 @@ inline float exp_sub_max_simd_nt(const float* src, float* dst, size_t n) {
 }
 
 inline void softmax_simd_nt(const float* src, float* dst, size_t n) {
+    if (n == 0) return;
     float exp_sum = exp_sub_max_simd_nt(src, dst, n);
     __m256 vrcp = _mm256_set1_ps(1.0f / exp_sum);
     size_t i = 0;
