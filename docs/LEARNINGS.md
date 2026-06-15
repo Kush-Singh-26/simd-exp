@@ -303,6 +303,90 @@ Verifies `avx2_exp_ps` accuracy against `std::exp` across 7 test categories.
 
 ---
 
+## 9. C++23 Migration — `std::mdspan` and `std::expected`
+
+### What changed
+
+Migrated from C++20 to C++23. Two features adopted:
+
+1. **`std::mdspan`** — replaced hardcoded 4x4 `mat_transpose` with arbitrary NxM via multidimensional views
+2. **`std::expected`** — replaced `throw std::bad_alloc` in `aligned_alloc` with type-safe error returns
+
+### `std::mdspan` in mat_transpose
+
+**Before** (C++20, hardcoded 4x4):
+```cpp
+inline void transpose_scalar(const float* src, float* dst) {
+    for (size_t i = 0; i < 4; i++) {
+        for (size_t j = 0; j < 4; j++) {
+            dst[j * 4 + i] = src[i * 4 + j];  // manual index math
+        }
+    }
+}
+```
+
+**After** (C++23, arbitrary NxM):
+```cpp
+inline void transpose_scalar(const float* src, float* dst, size_t rows, size_t cols) {
+    std::mdspan<const float, std::dextents<size_t, 2>> src_md(src, rows, cols);
+    std::mdspan<float, std::dextents<size_t, 2>> dst_md(dst, cols, rows);
+    for (size_t i = 0; i < rows; i++) {
+        for (size_t j = 0; j < cols; j++) {
+            dst_md[j, i] = src_md[i, j];  // multidimensional subscript
+        }
+    }
+}
+```
+
+**Key points:**
+- `std::mdspan` is a non-owning view — wraps a raw pointer + dimensions, no allocation or copy
+- `std::dextents<size_t, 2>` = 2 dynamic dimensions (compile-time extents like `extents<size_t, 4, 4>` also available)
+- `operator[](i, j)` computes the flat index internally — eliminates manual stride arithmetic
+- `sizeof(mdspan)` is ~24 bytes (pointer + 2 extents) — zero overhead after inlining
+- Dispatcher auto-selects SIMD 4x4 for `rows==4 && cols==4`, scalar for everything else
+
+### `std::expected` for aligned_alloc
+
+**Before** (C++20, exceptions):
+```cpp
+inline void* aligned_alloc(size_t alignment, size_t size) {
+    void* ptr = nullptr;
+    if (posix_memalign(&ptr, alignment, size) != 0) {
+        throw std::bad_alloc();  // exceptions often disabled in SIMD code
+    }
+    return ptr;
+}
+```
+
+**After** (C++23, expected):
+```cpp
+inline std::expected<void*, std::errc> aligned_alloc(size_t alignment, size_t size) {
+    void* ptr = nullptr;
+    if (posix_memalign(&ptr, alignment, size) != 0) {
+        return std::unexpected(std::errc::not_enough_memory);
+    }
+    return ptr;
+}
+```
+
+**Key points:**
+- `std::expected<T, E>` is C++23's replacement for `std::optional` + error info
+- Callers check `has_value()` before dereferencing `.value()`
+- Zero overhead — same binary layout as a union + bool flag
+- Many SIMD/ML codebases disable exceptions (`-fno-exceptions`) — `expected` gives type-safe error handling without them
+- Callers in bench files use early return: `if (!result.has_value()) return;`
+
+### Other C++23 features evaluated
+
+| Feature | Verdict | Reason |
+|---------|---------|--------|
+| `if consteval` | Not used | `#if defined(SIMD_AVX2_ENABLED)` preprocessor guards are the right tool for ISA detection |
+| `std::unreachable` | Not used | mat_transpose SIMD is a single 4x4 block with no loops; no applicable hot paths |
+| Deducing `this` | Not used | Minimal const/non-const overload duplication in current codebase |
+| `std::print` | Not used | Nice-to-have for test output, not functional |
+
+---
+
 ## Cross-Cutting Observations
 
 ### Memory-bound vs Compute-bound

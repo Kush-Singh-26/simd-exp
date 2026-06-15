@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <simd/common.hpp>
 #include <simd/ops/sum/scalar.hpp>
 #include <vector>
 #include <random>
@@ -91,3 +92,22 @@ TEST(SumTest, SIMD_LargeInput) {
     EXPECT_NEAR(scalar_result, simd_result, 1.0f);
 }
 #endif
+
+#include <simd/ops/sum/sum.hpp>
+
+TEST(SumTest, Dispatcher_KnownValues) {
+    float data[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
+    float result = simd::sum(data, 8);
+    EXPECT_FLOAT_EQ(result, 36.0f);
+}
+
+TEST(SumTest, Dispatcher_RandomData) {
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<float> dist(-10.0f, 10.0f);
+    std::vector<float> data(1024);
+    for (auto& x : data) x = dist(rng);
+    float result = simd::sum(data.data(), 1024);
+    float expected = 0.0f;
+    for (auto x : data) expected += x;
+    EXPECT_NEAR(result, expected, 1e-2f);
+}

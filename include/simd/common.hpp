@@ -10,21 +10,27 @@
 #endif
 
 #include <cstdlib>
-#include <new>
+#include <expected>
+#include <system_error>
 
 namespace simd {
 
 // Aligned allocation utility for Non-Temporal stores
-inline void* aligned_alloc(size_t alignment, size_t size) {
+// Returns expected<void*, std::errc> — check has_value() before use.
+inline std::expected<void*, std::errc> aligned_alloc(size_t alignment, size_t size) {
 #if defined(SIMD_AVX2_ENABLED)
-    return _mm_malloc(size, alignment);
+    void* ptr = _mm_malloc(size, alignment);
+    if (!ptr) return std::unexpected(std::errc::not_enough_memory);
+    return ptr;
 #else
     #if defined(_MSC_VER)
-        return _aligned_malloc(size, alignment);
+        void* ptr = _aligned_malloc(size, alignment);
+        if (!ptr) return std::unexpected(std::errc::not_enough_memory);
+        return ptr;
     #else
         void* ptr = nullptr;
         if (posix_memalign(&ptr, alignment, size) != 0) {
-            throw std::bad_alloc();
+            return std::unexpected(std::errc::not_enough_memory);
         }
         return ptr;
     #endif

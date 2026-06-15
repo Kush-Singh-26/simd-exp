@@ -7,9 +7,11 @@
 static void BM_Dot_Prod_Scalar(benchmark::State& state, DataType dtype) {
   size_t n = state.range(0);
   std::vector<float> data1(n), data2(n);
-  gen_data_const(data1, dtype);
-  gen_data_const(data2, dtype);
+  gen_data_random(data1, dtype);
+  gen_data_random(data2, dtype);
   for (auto _ : state) {
+    benchmark::DoNotOptimize(data1.data());
+    benchmark::DoNotOptimize(data2.data());
     float r = simd::impl::dot_prod_scalar(data1.data(), data2.data(), n);
     benchmark::DoNotOptimize(r);
   }
@@ -22,9 +24,11 @@ BENCHMARK_CAPTURE(BM_Dot_Prod_Scalar, rand, DataType::RAND)->Arg(1<<20)->Arg(1<<
 static void BM_Dot_Prod_Simd(benchmark::State& state, DataType dtype) {
   size_t n = state.range(0);
   std::vector<float> data1(n), data2(n);
-  gen_data_const(data1, dtype);
-  gen_data_const(data2, dtype);
+  gen_data_random(data1, dtype);
+  gen_data_random(data2, dtype);
   for (auto _ : state) {
+    benchmark::DoNotOptimize(data1.data());
+    benchmark::DoNotOptimize(data2.data());
     float r = simd::impl::dot_prod_simd(data1.data(), data2.data(), n);
     benchmark::DoNotOptimize(r);
   }

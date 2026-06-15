@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <simd/common.hpp>
 #include <simd/ops/clamp/scalar.hpp>
 #include <vector>
 #include <random>
@@ -135,3 +136,38 @@ TEST(ClampTest, SIMD_LargeInput) {
     }
 }
 #endif
+
+#include <simd/ops/clamp/clamp.hpp>
+
+TEST(ClampTest, Dispatcher_KnownValues) {
+    float src[] = {-10.0f, -5.0f, 0.0f, 5.0f, 10.0f, 15.0f, -1.0f, 3.0f};
+    float expected[] = {-5.0f, -5.0f, 0.0f, 5.0f, 5.0f, 5.0f, -1.0f, 3.0f};
+    float dst[8];
+    simd::clamp(src, dst, 8, -5.0f, 5.0f);
+    for (int i = 0; i < 8; i++) {
+        EXPECT_FLOAT_EQ(dst[i], expected[i]);
+    }
+}
+
+TEST(ClampTest, Dispatcher_RandomData) {
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<float> dist(-100.0f, 100.0f);
+    std::vector<float> src(1024);
+    for (auto& x : src) x = dist(rng);
+    std::vector<float> dst(1024);
+    simd::clamp(src.data(), dst.data(), 1024, -10.0f, 10.0f);
+    for (size_t i = 0; i < 1024; i++) {
+        EXPECT_GE(dst[i], -10.0f);
+        EXPECT_LE(dst[i], 10.0f);
+    }
+}
+
+TEST(ClampTest, Dispatcher_NT_KnownValues) {
+    float src[] = {-10.0f, -5.0f, 0.0f, 5.0f, 10.0f, 15.0f, -1.0f, 3.0f};
+    float expected[] = {-5.0f, -5.0f, 0.0f, 5.0f, 5.0f, 5.0f, -1.0f, 3.0f};
+    float dst[8];
+    simd::clamp_nt(src, dst, 8, -5.0f, 5.0f);
+    for (int i = 0; i < 8; i++) {
+        EXPECT_FLOAT_EQ(dst[i], expected[i]);
+    }
+}

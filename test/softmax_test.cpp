@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <simd/common.hpp>
 #include <simd/ops/softmax/scalar.hpp>
 #include <vector>
 #include <random>
@@ -145,3 +146,44 @@ TEST(SoftmaxTest, SIMD_LargeInput) {
     }
 }
 #endif
+
+#include <simd/ops/softmax/softmax.hpp>
+
+TEST(SoftmaxTest, Dispatcher_KnownValues) {
+    float src[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
+    float dst[8];
+    simd::softmax(src, dst, 8);
+    float sum = 0.0f;
+    for (int i = 0; i < 8; i++) {
+        EXPECT_GE(dst[i], 0.0f);
+        sum += dst[i];
+    }
+    EXPECT_NEAR(sum, 1.0f, 1e-5f);
+}
+
+TEST(SoftmaxTest, Dispatcher_RandomData) {
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<float> dist(-5.0f, 5.0f);
+    std::vector<float> src(1024);
+    for (auto& x : src) x = dist(rng);
+    std::vector<float> dst(1024);
+    simd::softmax(src.data(), dst.data(), 1024);
+    float sum = 0.0f;
+    for (size_t i = 0; i < 1024; i++) {
+        EXPECT_GE(dst[i], 0.0f);
+        sum += dst[i];
+    }
+    EXPECT_NEAR(sum, 1.0f, 1e-5f);
+}
+
+TEST(SoftmaxTest, Dispatcher_NT_KnownValues) {
+    float src[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
+    float dst[8];
+    simd::softmax_nt(src, dst, 8);
+    float sum = 0.0f;
+    for (int i = 0; i < 8; i++) {
+        EXPECT_GE(dst[i], 0.0f);
+        sum += dst[i];
+    }
+    EXPECT_NEAR(sum, 1.0f, 1e-5f);
+}

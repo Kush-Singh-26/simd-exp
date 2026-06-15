@@ -55,7 +55,9 @@ install_manifest.txt
 
 # C++ Language Server (clangd) cache and compile database
 .clangd/
+.cache/
 compile_commands.json
+CMakeUserPresets.json
 
 # OS-generated files
 .DS_Store

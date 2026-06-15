@@ -175,9 +175,11 @@ Your benchmark is automatically picked up by the globbing pattern in `CMakeLists
 
 ## 5. Design Best Practices
 
-1. **Memory Alignment**: For streaming/non-temporal stores (NT), the destination pointer **must** be 32-byte aligned for AVX2. Use the library's utility:
+1. **Memory Alignment**: For streaming/non-temporal stores (NT), the destination pointer **must** be 32-byte aligned for AVX2. Use the library's utility (returns `std::expected`, check before use):
    ```cpp
-   float* dst = static_cast<float*>(simd::aligned_alloc(32, size * sizeof(float)));
+   auto result = simd::aligned_alloc(32, size * sizeof(float));
+   if (!result.has_value()) return;
+   float* dst = static_cast<float*>(result.value());
    ...
    simd::aligned_free(dst);
    ```

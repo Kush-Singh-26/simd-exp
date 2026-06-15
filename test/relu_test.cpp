@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <simd/common.hpp>
 #include <simd/ops/relu/scalar.hpp>
 #include <vector>
 #include <random>
@@ -123,3 +124,38 @@ TEST(ReluTest, SIMD_LargeInput) {
     }
 }
 #endif
+
+#include <simd/ops/relu/relu.hpp>
+
+TEST(ReluTest, Dispatcher_KnownValues) {
+    float src[] = {-3.0f, -1.0f, 0.0f, 1.0f, 3.0f, -0.5f, 0.5f, 100.0f};
+    float expected[] = {0.0f, 0.0f, 0.0f, 1.0f, 3.0f, 0.0f, 0.5f, 100.0f};
+    float dst[8];
+    simd::relu(src, dst, 8);
+    for (int i = 0; i < 8; i++) {
+        EXPECT_FLOAT_EQ(dst[i], expected[i]);
+    }
+}
+
+TEST(ReluTest, Dispatcher_RandomData) {
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<float> dist(-100.0f, 100.0f);
+    std::vector<float> src(1024);
+    for (auto& x : src) x = dist(rng);
+    std::vector<float> dst(1024);
+    simd::relu(src.data(), dst.data(), 1024);
+    for (size_t i = 0; i < 1024; i++) {
+        EXPECT_GE(dst[i], 0.0f);
+        EXPECT_FLOAT_EQ(dst[i], std::fmax(0.0f, src[i]));
+    }
+}
+
+TEST(ReluTest, Dispatcher_NT_KnownValues) {
+    float src[] = {-3.0f, -1.0f, 0.0f, 1.0f, 3.0f, -0.5f, 0.5f, 100.0f};
+    float expected[] = {0.0f, 0.0f, 0.0f, 1.0f, 3.0f, 0.0f, 0.5f, 100.0f};
+    float dst[8];
+    simd::relu_nt(src, dst, 8);
+    for (int i = 0; i < 8; i++) {
+        EXPECT_FLOAT_EQ(dst[i], expected[i]);
+    }
+}

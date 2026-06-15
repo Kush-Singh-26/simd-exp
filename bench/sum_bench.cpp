@@ -9,13 +9,14 @@ static void BM_Sum_Scalar(benchmark::State& state, DataType dtype) {
   std::vector<float> data(n);
   gen_data_const(data, dtype);
   for (auto _ : state) {
+    benchmark::DoNotOptimize(data.data());
     float r = simd::impl::sum_scalar(data.data(), n);
     benchmark::DoNotOptimize(r);
   }
 }
-BENCHMARK_CAPTURE(BM_Sum_Scalar, pos, DataType::POS)->Arg(1<<20);
-BENCHMARK_CAPTURE(BM_Sum_Scalar, neg, DataType::NEG)->Arg(1<<20);
-BENCHMARK_CAPTURE(BM_Sum_Scalar, rand, DataType::RAND)->Arg(1<<20);
+BENCHMARK_CAPTURE(BM_Sum_Scalar, pos, DataType::POS)->Arg(1<<20)->Arg(1<<12)->Arg(1<<10);
+BENCHMARK_CAPTURE(BM_Sum_Scalar, neg, DataType::NEG)->Arg(1<<20)->Arg(1<<12)->Arg(1<<10);
+BENCHMARK_CAPTURE(BM_Sum_Scalar, rand, DataType::RAND)->Arg(1<<20)->Arg(1<<12)->Arg(1<<10);
 
 #if defined(SIMD_AVX2_ENABLED)
 static void BM_Sum_Simd(benchmark::State& state, DataType dtype) {
@@ -23,13 +24,14 @@ static void BM_Sum_Simd(benchmark::State& state, DataType dtype) {
   std::vector<float> data(n);
   gen_data_const(data, dtype);
   for (auto _ : state) {
+    benchmark::DoNotOptimize(data.data());
     float r = simd::impl::sum_simd(data.data(), n);
     benchmark::DoNotOptimize(r);
   }
 }
-BENCHMARK_CAPTURE(BM_Sum_Simd, pos, DataType::POS)->Arg(1<<20);
-BENCHMARK_CAPTURE(BM_Sum_Simd, neg, DataType::NEG)->Arg(1<<20);
-BENCHMARK_CAPTURE(BM_Sum_Simd, rand, DataType::RAND)->Arg(1<<20);
+BENCHMARK_CAPTURE(BM_Sum_Simd, pos, DataType::POS)->Arg(1<<20)->Arg(1<<12)->Arg(1<<10);
+BENCHMARK_CAPTURE(BM_Sum_Simd, neg, DataType::NEG)->Arg(1<<20)->Arg(1<<12)->Arg(1<<10);
+BENCHMARK_CAPTURE(BM_Sum_Simd, rand, DataType::RAND)->Arg(1<<20)->Arg(1<<12)->Arg(1<<10);
 #endif
 
 BENCHMARK_MAIN();

@@ -1,6 +1,6 @@
 # SIMD Experiments
 
-A header-only C++20 library and benchmark suite for AVX2 (Advanced Vector Extensions 2) SIMD intrinsics.
+A header-only C++23 library and benchmark suite for AVX2 (Advanced Vector Extensions 2) SIMD intrinsics.
 
 ## Features
 
@@ -9,6 +9,7 @@ A header-only C++20 library and benchmark suite for AVX2 (Advanced Vector Extens
 - High-performance unrolled implementations (FMA, unaligned loads, non-temporal stores)
 - Benchmarking suite powered by Google Benchmark
 - Unit tests powered by Google Test with scalar fallback coverage
+- C++23 features: `std::mdspan` (multidimensional views), `std::expected` (type-safe error handling)
 
 ## Operations
 
@@ -17,7 +18,7 @@ A header-only C++20 library and benchmark suite for AVX2 (Advanced Vector Extens
 | `abs` | Yes | Yes | Yes | Element-wise absolute value |
 | `clamp` | Yes | Yes | Yes | Element-wise clamp to [lo, hi] |
 | `dot_prod` | Yes | Yes (FMA) | No | Dot product of two vectors |
-| `mat_transpose` | Yes | Yes | Yes | 4x4 matrix transpose |
+| `mat_transpose` | Yes | Yes | Yes | Arbitrary NxM matrix transpose (`std::mdspan`) |
 | `online_softmax` | Yes | Yes | No | Single-pass softmax (online max/sum) |
 | `relu` | Yes | Yes | Yes | Element-wise rectified linear unit |
 | `softmax` | Yes | Yes | Yes | Standard 3-pass softmax |
@@ -28,7 +29,7 @@ A header-only C++20 library and benchmark suite for AVX2 (Advanced Vector Extens
 - `include/simd/`: Header-only library source code
   - `simd.hpp`: Master header including all operations
   - `common.hpp`: Alignments, allocators, and CPU dispatch logic
-  - `math_utils.hpp`: Shared AVX2 exp approximation (Estrin polynomial, Cody-Waite range reduction, < 3 ULP / ~1e-7 accuracy — see [docs/exp_approximation.md](docs/exp_approximation.md))
+  - `math_utils.hpp`: Shared AVX2 exp approximation (Estrin polynomial, Cody-Waite range reduction, < 3 ULP / ~1e-7 accuracy — see [docs/exp_approximation.md](docs/exp_approximation.md)) and horizontal reductions (`hsum_ps`, `hmax_ps`, `hmin_ps`)
   - `ops/`: Modular directory containing per-operation headers (SIMD, scalar, and dispatcher)
 - `bench/`: Source code for performance benchmarks
   - `bench_utils.hpp`: Shared data generation utilities
@@ -40,7 +41,7 @@ A header-only C++20 library and benchmark suite for AVX2 (Advanced Vector Extens
 
 ### Prerequisites
 
-- C++20 compiler (GCC 10+ or Clang 12+)
+- C++23 compiler (GCC 13+ or Clang 17+)
 - CMake >= 3.16
 - Google Benchmark (system or FetchContent)
 - Google Test (fetched automatically via FetchContent)
@@ -74,19 +75,19 @@ cmake --build build --target run_all
 
 ### Test Coverage
 
-9 test suites covering all operations. Scalar tests run unconditionally; SIMD tests require AVX2:
+9 test suites, 134 tests covering all operations. Scalar tests run unconditionally; SIMD tests require AVX2:
 
-| Test | Scalar | SIMD | What it verifies |
-|------|--------|------|------------------|
-| `abs_test` | 7 tests | 4 tests | Bitwise abs, edge cases |
-| `clamp_test` | 7 tests | 4 tests | Clamp to [lo, hi] |
-| `dot_prod_test` | 7 tests | 3 tests | Dot product accuracy (requires FMA) |
-| `mat_transpose_test` | 8 tests | 3 tests | 4x4 transpose |
-| `math_utils_test` | — | 7 tests | `avx2_exp_ps` < 3 ULP vs `std::exp` |
-| `online_softmax_test` | 8 tests | 2 tests | Online softmax + plain vs online comparison |
-| `relu_test` | 7 tests | 4 tests | ReLU activation |
-| `softmax_test` | 8 tests | 4 tests | Softmax correctness |
-| `sum_test` | 7 tests | 3 tests | Sum reduction |
+| Test | Scalar | SIMD | Dispatcher | What it verifies |
+|------|--------|------|------------|------------------|
+| `abs_test` | 7 tests | 4 tests | 3 tests | Bitwise abs, edge cases, public API |
+| `clamp_test` | 7 tests | 4 tests | 3 tests | Clamp to [lo, hi], public API |
+| `dot_prod_test` | 7 tests | 3 tests | 2 tests | Dot product accuracy (requires FMA), public API |
+| `mat_transpose_test` | 15 tests | 4 tests | 2 tests | 4x4 + arbitrary NxM transpose (mdspan), public API |
+| `math_utils_test` | — | 15 tests | — | `avx2_exp_ps` < 3 ULP + hreduce (hsum/hmax/hmin/hsum_sq) |
+| `online_softmax_test` | 8 tests | 4 tests | 2 tests | Online softmax + plain vs online, public API |
+| `relu_test` | 7 tests | 4 tests | 3 tests | ReLU activation, public API |
+| `softmax_test` | 8 tests | 4 tests | 3 tests | Softmax correctness, public API |
+| `sum_test` | 7 tests | 3 tests | 2 tests | Sum reduction, public API |
 
 ## Integration
 
@@ -101,10 +102,22 @@ Copy the `include/simd` directory directly into your project. Include `simd/simd
 // otherwise it will automatically fallback to standard C++ scalar loops.
 simd::relu(src, dst, size);
 
+// Matrix transpose (arbitrary NxM via std::mdspan):
+simd::transpose(src, dst, rows, cols);
+
 // For SIMD exp (used internally by softmax/online_softmax):
 // avx2_exp_ps() in math_utils.hpp provides < 3 ULP accuracy via
 // Estrin polynomial evaluation + Cody-Waite range reduction.
 ```
+
+### C++23 Features Used
+
+| Feature | Where | What it does |
+|---------|-------|-------------|
+| `std::mdspan` | `mat_transpose/scalar.hpp` | Non-owning 2D view — enables arbitrary NxM transpose (was hardcoded 4x4) |
+| `std::expected` | `common.hpp` | Type-safe error handling — `aligned_alloc` returns `expected<void*, errc>` instead of throwing |
+| `<mdspan>` header | `mat_transpose/scalar.hpp` | Multidimensional array view with `operator[](i, j)` indexing |
+| `<expected>` header | `common.hpp` | `std::expected<T, E>` for value-or-error returns |
 
 ### CMake Integration
 

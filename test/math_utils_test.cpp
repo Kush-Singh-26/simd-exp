@@ -157,4 +157,55 @@ TEST(MathUtilsTest, BatchComparison) {
     }
 }
 
+// ── Horizontal reduction tests ───────────────────────────────────────────────
+
+TEST(HreduceTest, Hsum_KnownValues) {
+    float data[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
+    __m256 v = _mm256_loadu_ps(data);
+    EXPECT_FLOAT_EQ(simd::impl::hsum_ps(v), 36.0f);
+}
+
+TEST(HreduceTest, Hmax_KnownValues) {
+    float data[] = {1.0f, 5.0f, 3.0f, 8.0f, 2.0f, 7.0f, 4.0f, 6.0f};
+    __m256 v = _mm256_loadu_ps(data);
+    EXPECT_FLOAT_EQ(simd::impl::hmax_ps(v), 8.0f);
+}
+
+TEST(HreduceTest, Hmin_KnownValues) {
+    float data[] = {1.0f, 5.0f, 3.0f, 8.0f, 2.0f, 7.0f, 4.0f, 6.0f};
+    __m256 v = _mm256_loadu_ps(data);
+    EXPECT_FLOAT_EQ(simd::impl::hmin_ps(v), 1.0f);
+}
+
+TEST(HreduceTest, Hsum_SingleElement) {
+    float data[] = {42.0f, 42.0f, 42.0f, 42.0f, 42.0f, 42.0f, 42.0f, 42.0f};
+    __m256 v = _mm256_loadu_ps(data);
+    EXPECT_FLOAT_EQ(simd::impl::hsum_ps(v), 336.0f);
+}
+
+TEST(HreduceTest, Hmax_AllSame) {
+    float data[] = {7.0f, 7.0f, 7.0f, 7.0f, 7.0f, 7.0f, 7.0f, 7.0f};
+    __m256 v = _mm256_loadu_ps(data);
+    EXPECT_FLOAT_EQ(simd::impl::hmax_ps(v), 7.0f);
+}
+
+TEST(HreduceTest, Hsum_AllZeros) {
+    float data[8] = {};
+    __m256 v = _mm256_loadu_ps(data);
+    EXPECT_FLOAT_EQ(simd::impl::hsum_ps(v), 0.0f);
+}
+
+TEST(HreduceTest, Hsum_NegativeValues) {
+    float data[] = {-1.0f, -2.0f, -3.0f, -4.0f, -5.0f, -6.0f, -7.0f, -8.0f};
+    __m256 v = _mm256_loadu_ps(data);
+    EXPECT_FLOAT_EQ(simd::impl::hsum_ps(v), -36.0f);
+}
+
+TEST(HreduceTest, HsumPsSq_KnownValues) {
+    float data[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
+    __m256 v = _mm256_loadu_ps(data);
+    // 1+4+9+16+25+36+49+64 = 204
+    EXPECT_FLOAT_EQ(simd::impl::hsum_ps_sq(v), 204.0f);
+}
+
 #endif

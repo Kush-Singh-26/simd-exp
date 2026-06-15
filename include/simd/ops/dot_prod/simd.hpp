@@ -1,5 +1,5 @@
 #pragma once
-#include "../../common.hpp"
+#include "../../math_utils.hpp"
 #include <cstddef>
 
 namespace simd {
@@ -24,13 +24,7 @@ inline float dot_prod_simd(const float* data1, const float* data2, size_t n) {
     vsum2 = _mm256_add_ps(vsum2, vsum3);
     vsum0 = _mm256_add_ps(vsum0, vsum2);
 
-    __m256 swapped = _mm256_permute2f128_ps(vsum0, vsum0, 1);
-    __m256 folded = _mm256_add_ps(vsum0, swapped);
-    
-    __m256 h1 = _mm256_hadd_ps(folded, folded);
-    __m256 h2 = _mm256_hadd_ps(h1, h1);
-
-    float d = _mm_cvtss_f32(_mm256_castps256_ps128(h2));
+    float d = hsum_ps(vsum0);
     
     for (; i < n; i++) {
         d += data1[i] * data2[i];

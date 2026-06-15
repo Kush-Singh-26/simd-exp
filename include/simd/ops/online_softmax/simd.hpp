@@ -35,26 +35,14 @@ inline void online_exp_sum_max_simd(const float* src, size_t n, float* out_max, 
         v_d = _mm256_fmadd_ps(v_d, v_correction_factor, v_new_elements);
     }
 
-    // Horizontal Max of v_m
-    __m128 m_lo = _mm256_castps256_ps128(v_m);
-    __m128 m_hi = _mm256_extractf128_ps(v_m, 1);
-    __m128 m_max = _mm_max_ps(m_lo, m_hi);
-    m_max = _mm_max_ps(m_max, _mm_shuffle_ps(m_max, m_max, _MM_SHUFFLE(1, 0, 3, 2)));
-    m_max = _mm_max_ps(m_max, _mm_shuffle_ps(m_max, m_max, _MM_SHUFFLE(2, 3, 0, 1)));
-    float global_max = _mm_cvtss_f32(m_max);
+    float global_max = hmax_ps(v_m);
 
     __m256 v_global_max = _mm256_set1_ps(global_max);
     
     __m256 v_d_correction = avx2_exp_ps(_mm256_sub_ps(v_m, v_global_max));
     v_d = _mm256_mul_ps(v_d, v_d_correction);
 
-    __m128 d_lo = _mm256_castps256_ps128(v_d);
-    __m128 d_hi = _mm256_extractf128_ps(v_d, 1);
-    __m128 d_sum = _mm_add_ps(d_lo, d_hi);
-    // Shuffle down and add to reduce 4 elements to 1
-    d_sum = _mm_add_ps(d_sum, _mm_shuffle_ps(d_sum, d_sum, _MM_SHUFFLE(1, 0, 3, 2)));
-    d_sum = _mm_add_ps(d_sum, _mm_shuffle_ps(d_sum, d_sum, _MM_SHUFFLE(2, 3, 0, 1)));
-    float global_sum = _mm_cvtss_f32(d_sum);
+    float global_sum = hsum_ps(v_d);
 
     // Tail
     for (; i < n; ++i) {

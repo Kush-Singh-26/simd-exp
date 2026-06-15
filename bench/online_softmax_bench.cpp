@@ -1,6 +1,5 @@
 #include <benchmark/benchmark.h>
-#include <simd/ops/online_softmax/scalar.hpp>
-#include <simd/ops/online_softmax/simd.hpp>
+#include <simd/simd.hpp>
 #include <vector>
 #include <cstddef>
 #include "bench_utils.hpp"
@@ -11,6 +10,7 @@ static void BM_Online_Softmax_Scalar(benchmark::State& state, DataType dtype) {
   gen_data_random(src, dtype);
   std::vector<float> dst(n);
   for (auto _ : state) {
+    benchmark::DoNotOptimize(src.data());
     simd::impl::online_softmax_scalar(src.data(), dst.data(), n);
     benchmark::DoNotOptimize(dst.data());
   }
@@ -26,6 +26,7 @@ static void BM_Online_Softmax_Simd(benchmark::State& state, DataType dtype) {
   gen_data_random(src, dtype);
   std::vector<float> dst(n);
   for (auto _ : state) {
+    benchmark::DoNotOptimize(src.data());
     simd::impl::online_softmax_simd(src.data(), dst.data(), n);
     benchmark::DoNotOptimize(dst.data());
   }

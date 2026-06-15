@@ -1,6 +1,6 @@
 {
   "context": {
-    "date": "2026-06-14T11:04:15+05:30",
+    "date": "2026-06-15T00:18:29+05:30",
     "host_name": "kush",
     "executable": "./sum_bench",
     "num_cpus": 12,
@@ -33,38 +33,94 @@
         "num_sharing": 12
       }
     ],
-    "load_avg": [5.36523,4.35986,3.23438],
+    "load_avg": [2.73877,3.26611,3.26074],
     "library_version": "1.9.5",
     "library_build_type": "release",
     "json_schema_version": 1
   },
   "benchmarks": [
     {
-      "name": "BM_Sum_Scalar/1048576",
+      "name": "BM_Sum_Scalar/pos/1048576",
       "family_index": 0,
       "per_family_instance_index": 0,
-      "run_name": "BM_Sum_Scalar/1048576",
+      "run_name": "BM_Sum_Scalar/pos/1048576",
       "run_type": "iteration",
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 209,
-      "real_time": 2.5571958085579984e+06,
-      "cpu_time": 2.5129710478468905e+06,
+      "iterations": 405,
+      "real_time": 1.7172934567946710e+06,
+      "cpu_time": 1.6972256395061731e+06,
       "time_unit": "ns"
     },
     {
-      "name": "BM_Sum_Simd/1048576",
+      "name": "BM_Sum_Scalar/neg/1048576",
       "family_index": 1,
       "per_family_instance_index": 0,
-      "run_name": "BM_Sum_Simd/1048576",
+      "run_name": "BM_Sum_Scalar/neg/1048576",
       "run_type": "iteration",
       "repetitions": 1,
       "repetition_index": 0,
       "threads": 1,
-      "iterations": 1312,
-      "real_time": 4.6299984986523294e+05,
-      "cpu_time": 4.5348155868902442e+05,
+      "iterations": 383,
+      "real_time": 1.7417948041050441e+06,
+      "cpu_time": 1.7209088955613577e+06,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Sum_Scalar/rand/1048576",
+      "family_index": 2,
+      "per_family_instance_index": 0,
+      "run_name": "BM_Sum_Scalar/rand/1048576",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 384,
+      "real_time": 1.7110660363262771e+06,
+      "cpu_time": 1.6875361640624998e+06,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Sum_Simd/pos/1048576",
+      "family_index": 3,
+      "per_family_instance_index": 0,
+      "run_name": "BM_Sum_Simd/pos/1048576",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2583,
+      "real_time": 2.5714095972606027e+05,
+      "cpu_time": 2.5470319628339121e+05,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Sum_Simd/neg/1048576",
+      "family_index": 4,
+      "per_family_instance_index": 0,
+      "run_name": "BM_Sum_Simd/neg/1048576",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2679,
+      "real_time": 2.6955423291655100e+05,
+      "cpu_time": 2.6578833482642774e+05,
+      "time_unit": "ns"
+    },
+    {
+      "name": "BM_Sum_Simd/rand/1048576",
+      "family_index": 5,
+      "per_family_instance_index": 0,
+      "run_name": "BM_Sum_Simd/rand/1048576",
+      "run_type": "iteration",
+      "repetitions": 1,
+      "repetition_index": 0,
+      "threads": 1,
+      "iterations": 2752,
+      "real_time": 2.6694733794080769e+05,
+      "cpu_time": 2.6290200254360476e+05,
       "time_unit": "ns"
     }
   ]

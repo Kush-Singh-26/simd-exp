@@ -37,9 +37,11 @@ static void BM_Clamp_Simd_NT(benchmark::State& state, DataType dtype) {
   size_t n = state.range(0);
   std::vector<float> src(n);
   gen_data_const(src, dtype);
-  float* dst = static_cast<float*>(simd::aligned_alloc(32, n * sizeof(float)));
+  auto alloc_result = simd::aligned_alloc(32, n * sizeof(float));
+  if (!alloc_result.has_value()) return;
+  float* dst = static_cast<float*>(alloc_result.value());
   for (auto _ : state) {
-    simd::impl::clamp_simd_nt(src.data(), dst, n, 0.0f, 1.0f);
+    simd::impl::clamp_simd_nt(src.data(), dst, n, 0.f, 1.0f);
     benchmark::DoNotOptimize(dst);
   }
   simd::aligned_free(dst);

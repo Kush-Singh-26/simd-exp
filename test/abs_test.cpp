@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <simd/common.hpp>
 #include <simd/ops/abs/scalar.hpp>
 #include <vector>
 #include <cmath>
@@ -134,3 +135,38 @@ TEST(AbsTest, SIMD_LargeInput) {
     }
 }
 #endif
+
+#include <simd/ops/abs/abs.hpp>
+
+TEST(AbsTest, Dispatcher_KnownValues) {
+    float src[] = {-3.0f, -1.5f, 0.0f, 1.5f, 3.0f, -100.0f, 42.0f, -0.001f};
+    float expected[] = {3.0f, 1.5f, 0.0f, 1.5f, 3.0f, 100.0f, 42.0f, 0.001f};
+    float dst[8];
+    simd::abs(src, dst, 8);
+    for (int i = 0; i < 8; i++) {
+        EXPECT_FLOAT_EQ(dst[i], expected[i]);
+    }
+}
+
+TEST(AbsTest, Dispatcher_RandomData) {
+    std::mt19937 rng(42);
+    std::uniform_real_distribution<float> dist(-50.0f, 50.0f);
+    std::vector<float> src(4096);
+    for (auto& x : src) x = dist(rng);
+    std::vector<float> dst(4096);
+    simd::abs(src.data(), dst.data(), 4096);
+    for (size_t i = 0; i < 4096; i++) {
+        EXPECT_GE(dst[i], 0.0f);
+        EXPECT_FLOAT_EQ(dst[i], std::fabs(src[i]));
+    }
+}
+
+TEST(AbsTest, Dispatcher_NT_KnownValues) {
+    float src[] = {-3.0f, -1.5f, 0.0f, 1.5f, 3.0f, -100.0f, 42.0f, -0.001f};
+    float expected[] = {3.0f, 1.5f, 0.0f, 1.5f, 3.0f, 100.0f, 42.0f, 0.001f};
+    float dst[8];
+    simd::abs_nt(src, dst, 8);
+    for (int i = 0; i < 8; i++) {
+        EXPECT_FLOAT_EQ(dst[i], expected[i]);
+    }
+}

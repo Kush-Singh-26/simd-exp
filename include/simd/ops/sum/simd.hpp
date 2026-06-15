@@ -1,5 +1,5 @@
 #pragma once
-#include "../../common.hpp"
+#include "../../math_utils.hpp"
 #include <cstddef>
 
 namespace simd {
@@ -15,13 +15,7 @@ inline float sum_simd(const float* data, size_t n) {
         vsum = _mm256_add_ps(vsum, _mm256_loadu_ps(data + i));
     }
     
-    // Horizontal reductions
-    __m256 swapped = _mm256_permute2f128_ps(vsum, vsum, 1);
-    __m256 folded = _mm256_add_ps(vsum, swapped);
-    __m256 h1 = _mm256_hadd_ps(folded, folded);
-    __m256 h2 = _mm256_hadd_ps(h1, h1);
-    
-    float s = _mm_cvtss_f32(_mm256_castps256_ps128(h2));
+    float s = hsum_ps(vsum);
     
     // Summing tail elements
     for (; i < n; i++) {

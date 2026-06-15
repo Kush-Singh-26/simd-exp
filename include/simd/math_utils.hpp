@@ -117,6 +117,66 @@ inline __m256 avx2_exp_ps(__m256 x) {
     return _mm256_mul_ps(y, _mm256_castsi256_ps(pow2n));
 }
 
+// ── Horizontal reductions (256→scalar) ──────────────────────────────────────
+// extractf128 + SSE3 shuffle chain. ~5 cycle critical path.
+// Why not haddps? hadd has 3-cycle latency vs movehlps/movehdup at 1 cycle.
+//
+// Usage:
+//   float s = hsum_ps(v);      // horizontal sum of 8 floats
+//   float m = hmax_ps(v);      // horizontal max of 8 floats
+//   float m = hmin_ps(v);      // horizontal min of 8 floats
+//   float s = hsum_ps_sq(v);   // horizontal sum of squares (for variance)
+
+// ── 128-bit building blocks ──────────────────────────────────────────────────
+
+static inline float hsum_128_ps(__m128 v) {
+    __m128 shuf = _mm_movehdup_ps(v);
+    __m128 sums = _mm_add_ps(v, shuf);
+    shuf = _mm_movehl_ps(shuf, sums);
+    sums = _mm_add_ss(sums, shuf);
+    return _mm_cvtss_f32(sums);
+}
+
+static inline float hmax_128_ps(__m128 v) {
+    __m128 shuf = _mm_movehdup_ps(v);
+    __m128 mx = _mm_max_ps(v, shuf);
+    shuf = _mm_movehl_ps(shuf, mx);
+    mx = _mm_max_ss(mx, shuf);
+    return _mm_cvtss_f32(mx);
+}
+
+static inline float hmin_128_ps(__m128 v) {
+    __m128 shuf = _mm_movehdup_ps(v);
+    __m128 mn = _mm_min_ps(v, shuf);
+    shuf = _mm_movehl_ps(shuf, mn);
+    mn = _mm_min_ss(mn, shuf);
+    return _mm_cvtss_f32(mn);
+}
+
+// ── 256-bit API (extractf128 + 128-bit building block) ──────────────────────
+
+static inline float hsum_ps(__m256 v) {
+    __m128 lo = _mm256_castps256_ps128(v);
+    __m128 hi = _mm256_extractf128_ps(v, 1);
+    return hsum_128_ps(_mm_add_ps(lo, hi));
+}
+
+static inline float hmax_ps(__m256 v) {
+    __m128 lo = _mm256_castps256_ps128(v);
+    __m128 hi = _mm256_extractf128_ps(v, 1);
+    return hmax_128_ps(_mm_max_ps(lo, hi));
+}
+
+static inline float hmin_ps(__m256 v) {
+    __m128 lo = _mm256_castps256_ps128(v);
+    __m128 hi = _mm256_extractf128_ps(v, 1);
+    return hmin_128_ps(_mm_min_ps(lo, hi));
+}
+
+static inline float hsum_ps_sq(__m256 v) {
+    return hsum_ps(_mm256_mul_ps(v, v));
+}
+
 } // namespace impl
 } // namespace simd
 
