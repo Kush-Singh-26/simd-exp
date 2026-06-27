@@ -439,11 +439,17 @@ Softmax is the only **compute-bound** operation in the library — the SIMD exp 
 ## How to Run
 
 ```bash
-# Single benchmark
-cmake --build build --target softmax_bench && ./build/softmax_bench
+# Build everything
+make
 
-# All benchmarks
-cmake --build build --target run_all
+# Run all tests
+make test
+
+# Run all benchmarks
+make bench
+
+# Single benchmark
+make build && ./build/softmax_bench
 
 # Filter specific benchmark
 ./build/relu_bench --benchmark_filter=rand
@@ -451,9 +457,6 @@ cmake --build build --target run_all
 
 # Run specific test
 ./build/math_utils_test --gtest_filter=MathUtilsTest.RandomData
-
-# Run all tests
-ctest --test-dir build --output-on-failure
 ```
 
 ## Tooling

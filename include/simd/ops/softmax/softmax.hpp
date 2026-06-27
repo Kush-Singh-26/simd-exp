@@ -1,23 +1,23 @@
 #pragma once
 #include "scalar.hpp"
 #include "simd.hpp"
-#include <cstddef>
+#include <span>
 
 namespace simd {
 
-inline void softmax(const float* src, float* dst, size_t n) {
+inline void softmax(std::span<const float> src, std::span<float> dst) {
 #if defined(SIMD_AVX2_ENABLED)
-    impl::softmax_simd(src, dst, n);
+    impl::softmax_simd(src.data(), dst.data(), src.size());
 #else
-    impl::softmax_scalar(src, dst, n);
+    impl::softmax_scalar_parallel(src.data(), dst.data(), src.size());
 #endif
 }
 
-inline void softmax_nt(const float* src, float* dst, size_t n) {
+inline void softmax_nt(std::span<const float> src, std::span<float> dst) {
 #if defined(SIMD_AVX2_ENABLED)
-    impl::softmax_simd_nt(src, dst, n);
+    impl::softmax_simd_nt(src.data(), dst.data(), src.size());
 #else
-    impl::softmax_scalar(src, dst, n);
+    impl::softmax_scalar_parallel(src.data(), dst.data(), src.size());
 #endif
 }
 

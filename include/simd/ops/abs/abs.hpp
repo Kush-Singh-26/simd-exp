@@ -1,23 +1,23 @@
 #pragma once
 #include "scalar.hpp"
 #include "simd.hpp"
-#include <cstddef>
+#include <span>
 
 namespace simd {
 
-inline void abs(const float* src, float* dst, size_t n) {
+inline void abs(std::span<const float> src, std::span<float> dst) {
 #if defined(SIMD_AVX2_ENABLED)
-    impl::abs_simd(src, dst, n);
+    impl::abs_simd(src.data(), dst.data(), src.size());
 #else
-    impl::abs_scalar(src, dst, n);
+    impl::abs_scalar_parallel(src.data(), dst.data(), src.size());
 #endif
 }
 
-inline void abs_nt(const float* src, float* dst, size_t n) {
+inline void abs_nt(std::span<const float> src, std::span<float> dst) {
 #if defined(SIMD_AVX2_ENABLED)
-    impl::abs_simd_nt(src, dst, n);
+    impl::abs_simd_nt(src.data(), dst.data(), src.size());
 #else
-    impl::abs_scalar(src, dst, n);
+    impl::abs_scalar_parallel(src.data(), dst.data(), src.size());
 #endif
 }
 

@@ -45,49 +45,90 @@ A header-only C++23 library and benchmark suite for AVX2 (Advanced Vector Extens
 - CMake >= 3.16
 - Google Benchmark (system or FetchContent)
 - Google Test (fetched automatically via FetchContent)
+- Ninja, ccache, and mold (recommended for fast builds):
+  ```bash
+  # Fedora
+  sudo dnf install ninja-build ccache mold
 
-### Setup and Compilation
+  # Ubuntu/Debian
+  sudo apt install ninja-build ccache mold
+  ```
+
+### First-time Setup
 
 ```bash
-# Configure the build directory
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-
-# Build all targets
-cmake --build build
+cmake -B build -G Ninja \
+  -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+  -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=mold"
 ```
+
+### Quick Commands
+
+A root `Makefile` provides convenient targets. Build uses Ninja, ccache, and mold linker automatically.
+
+| Command | What it does |
+|---|---|
+| `make` / `make build` | Build everything (parallel, auto-configures if needed) |
+| `make test` | Build + run all unit tests |
+| `make bench` | Build + run all benchmarks (JSON output to `bench/results/`) |
+| `make configure` | Configure CMake (only runs if `build/` doesn't exist) |
+| `make clean` | Delete build directory |
+| `make rebuild` | Full clean rebuild from scratch |
+
+Incremental builds (after the first build) take **< 1 second** thanks to ccache. Clean builds take ~75s.
 
 ### Running Tests
 
 ```bash
-# Run all unit tests
+# All tests
+make test
+
+# Or directly
 ctest --test-dir build --output-on-failure
+
+# Run a single test suite
+./build/matmul_test
+
+# Run a specific test by name
+./build/matmul_test --gtest_filter=MatmulTest.Ikj_Matches_Ijk
+
+# Run all tests in a group
+./build/sum_test --gtest_filter=SumTest.*
+
+# List all available tests
+./build/matmul_test --gtest_list_tests
 ```
 
 ### Running Benchmarks
 
 ```bash
-# Run a specific benchmark (e.g., softmax)
+# Run all benchmarks (saves JSON to bench/results/)
+make bench
+
+# Run a specific benchmark
 ./build/softmax_bench
 
-# Run all benchmarks sequentially
-cmake --build build --target run_all
+# Filter specific benchmarks
+./build/relu_bench --benchmark_filter=rand
+./build/softmax_bench --benchmark_repetitions=5 --benchmark_display_aggregates_only=true
 ```
 
 ### Test Coverage
 
-9 test suites, 134 tests covering all operations. Scalar tests run unconditionally; SIMD tests require AVX2:
+10 test suites covering all operations. Correctness is verified by comparing SIMD and dispatcher outputs directly against their scalar counterparts across 7 standard size classes (degenerate, tail-only, exact SIMD width, 1-element tail, large odd, large aligned, and very large stress sizes).
 
-| Test | Scalar | SIMD | Dispatcher | What it verifies |
-|------|--------|------|------------|------------------|
-| `abs_test` | 7 tests | 4 tests | 3 tests | Bitwise abs, edge cases, public API |
-| `clamp_test` | 7 tests | 4 tests | 3 tests | Clamp to [lo, hi], public API |
-| `dot_prod_test` | 7 tests | 3 tests | 2 tests | Dot product accuracy (requires FMA), public API |
-| `mat_transpose_test` | 15 tests | 4 tests | 2 tests | 4x4 + arbitrary NxM transpose (mdspan), public API |
-| `math_utils_test` | — | 15 tests | — | `avx2_exp_ps` < 3 ULP + hreduce (hsum/hmax/hmin/hsum_sq) |
-| `online_softmax_test` | 8 tests | 4 tests | 2 tests | Online softmax + plain vs online, public API |
-| `relu_test` | 7 tests | 4 tests | 3 tests | ReLU activation, public API |
-| `softmax_test` | 8 tests | 4 tests | 3 tests | Softmax correctness, public API |
-| `sum_test` | 7 tests | 3 tests | 2 tests | Sum reduction, public API |
+| Test Suite | What it verifies |
+|------------|------------------|
+| `abs_test` | Known values, SIMD vs scalar, public dispatcher API, NT stores |
+| `clamp_test` | Known values, SIMD vs scalar boundary stress, public dispatcher API, NT stores |
+| `dot_prod_test` | Dot product accuracy on 7 standard sizes (requires FMA), public dispatcher API |
+| `matmul_test` | Known values (ijk/ikj), cross-validation ikj vs ijk, non-square matrices, large matrices (256/512), single-element dimensions (M=1, N=1, K=1), dispatcher zero-init |
+| `mat_transpose_test` | Arbitrary NxM (`std::mdspan`), 4x4 SIMD kernel, NT stores, public dispatcher API |
+| `math_utils_test` | `avx2_exp_ps` ULP bounds, AVX2 horizontal reductions |
+| `online_softmax_test` | Single-pass SIMD vs scalar, sum-to-one invariants, equivalence to standard softmax |
+| `relu_test` | SIMD vs scalar, public dispatcher API, NT stores |
+| `softmax_test` | SIMD vs scalar, sum-to-one invariants, public dispatcher API |
+| `sum_test` | Sum reduction on 7 standard sizes, public dispatcher API |
 
 ## Integration
 

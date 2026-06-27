@@ -22,7 +22,7 @@ include/simd/ops/sigmoid/
 Let's use `sigmoid` as an example to see how to structure the three header files.
 
 ### A. `scalar.hpp` (Reference Code)
-Define the reference implementation inside the `simd::impl` namespace. This code is used for fallback on non-AVX2 hardware and as a baseline for correctness testing.
+Define the reference implementation inside the `simd::impl` namespace. This code is used for fallback on non-AVX2 hardware and as a baseline for correctness testing. Mark it `constexpr` to allow compile-time evaluation.
 
 ```cpp
 #pragma once
@@ -32,7 +32,7 @@ Define the reference implementation inside the `simd::impl` namespace. This code
 namespace simd {
 namespace impl {
 
-inline void sigmoid_scalar(const float* src, float* dst, size_t n) {
+inline constexpr void sigmoid_scalar(const float* src, float* dst, size_t n) {
     for (size_t i = 0; i < n; ++i) {
         dst[i] = 1.0f / (1.0f + std::exp(-src[i]));
     }
@@ -43,7 +43,7 @@ inline void sigmoid_scalar(const float* src, float* dst, size_t n) {
 ```
 
 ### B. `simd.hpp` (Intrinsics Code)
-Define the optimized SIMD path inside `simd::impl`, guarded by `SIMD_AVX2_ENABLED` (which is defined in `common.hpp`). Include `math_utils.hpp` if your operation needs SIMD exp (e.g., softmax, sigmoid). Provide standard unaligned stores and optional non-temporal stream implementations. Always implement a scalar loop to handle any remaining tail elements.
+Define the optimized SIMD path inside `simd::impl`, guarded by `SIMD_AVX2_ENABLED` (which is defined in `common.hpp`). Include `math_utils.hpp` if your operation needs SIMD exp (e.g., softmax, sigmoid). Provide standard unaligned stores and optional non-temporal stream implementations. Always implement a scalar loop to handle any remaining tail elements. Use `[[assume]]` attributes to help the compiler optimize loop bounds.
 
 ```cpp
 #pragma once
@@ -62,6 +62,8 @@ inline void sigmoid_simd(const float* src, float* dst, size_t n) {
     
     // Process chunks of 8 floats
     for (; i + 8 <= n; i += 8) {
+        [[assume(n > 0)]];
+        [[assume(i + 8 <= n)]];
         __m256 x = _mm256_loadu_ps(src + i);
         
         // (Perform SIMD operations here...)
@@ -85,22 +87,26 @@ inline void sigmoid_simd(const float* src, float* dst, size_t n) {
 ```
 
 ### C. `sigmoid.hpp` (Dispatcher Code)
-Expose the public API `simd::sigmoid` in the root `simd` namespace. Use preprocessor checks to transparently dispatch to the fastest available target.
+Expose the public API `simd::sigmoid` using `std::span` for type-safe buffer access and `if consteval` to select the scalar path during constant evaluation. Use preprocessor checks to transparently dispatch to the fastest available target at runtime.
 
 ```cpp
 #pragma once
 #include "scalar.hpp"
 #include "simd.hpp"
-#include <cstddef>
+#include <span>
 
 namespace simd {
 
-inline void sigmoid(const float* src, float* dst, size_t n) {
+inline void sigmoid(std::span<const float> src, std::span<float> dst) {
+    if consteval {
+        impl::sigmoid_scalar(src.data(), dst.data(), src.size());
+    } else {
 #if defined(SIMD_AVX2_ENABLED)
-    impl::sigmoid_simd(src, dst, n);
+        impl::sigmoid_simd(src.data(), dst.data(), src.size());
 #else
-    impl::sigmoid_scalar(src, dst, n);
+        impl::sigmoid_scalar(src.data(), dst.data(), src.size());
 #endif
+    }
 }
 
 } // namespace simd
@@ -126,50 +132,79 @@ Once your headers are created, make the operation globally available by adding i
 
 ## 4. Benchmarking the New Operation
 
-Create a new benchmark file under `bench/` to verify performance characteristics against the scalar reference. Use the shared data generation utilities from `bench/bench_utils.hpp`:
+With the unified benchmarking harness, you do not need to write standard Google Benchmark boilerplate. Create a new benchmark file under `bench/` and use the helper macros:
 
 **`bench/sigmoid_bench.cpp`**:
 ```cpp
-#include <benchmark/benchmark.h>
-#include <simd/simd.hpp>
-#include <vector>
-#include <cstddef>
-#include "bench_utils.hpp"
+#include "bench_harness.hpp"
+#include <simd/ops/sigmoid/scalar.hpp>
+#include <simd/ops/sigmoid/simd.hpp>
 
-static void BM_Sigmoid_Scalar(benchmark::State& state, DataType dtype) {
-  size_t n = state.range(0);
-  std::vector<float> src(n);
-  gen_data_random(src, dtype);
-  std::vector<float> dst(n);
-  for (auto _ : state) {
-    simd::impl::sigmoid_scalar(src.data(), dst.data(), n);
-    benchmark::DoNotOptimize(dst.data());
-  }
-}
-BENCHMARK_CAPTURE(BM_Sigmoid_Scalar, pos, DataType::POS)->Arg(1<<20);
-BENCHMARK_CAPTURE(BM_Sigmoid_Scalar, neg, DataType::NEG)->Arg(1<<20);
-BENCHMARK_CAPTURE(BM_Sigmoid_Scalar, rand, DataType::RAND)->Arg(1<<20);
-
-#if defined(SIMD_AVX2_ENABLED)
-static void BM_Sigmoid_Simd(benchmark::State& state, DataType dtype) {
-  size_t n = state.range(0);
-  std::vector<float> src(n);
-  gen_data_random(src, dtype);
-  std::vector<float> dst(n);
-  for (auto _ : state) {
-    simd::impl::sigmoid_simd(src.data(), dst.data(), n);
-    benchmark::DoNotOptimize(dst.data());
-  }
-}
-BENCHMARK_CAPTURE(BM_Sigmoid_Simd, pos, DataType::POS)->Arg(1<<20);
-BENCHMARK_CAPTURE(BM_Sigmoid_Simd, neg, DataType::NEG)->Arg(1<<20);
-BENCHMARK_CAPTURE(BM_Sigmoid_Simd, rand, DataType::RAND)->Arg(1<<20);
-#endif
+SIMD_BENCH_UNARY(Sigmoid,
+    simd::impl::sigmoid_scalar,
+    simd::impl::sigmoid_simd,
+    simd::impl::sigmoid_simd_nt,
+    gen_data_random)
 
 BENCHMARK_MAIN();
 ```
 
-Your benchmark is automatically picked up by the globbing pattern in `CMakeLists.txt` and compiled into a standalone executable. Use `gen_data_random` for softmax-like operations (random data) and `gen_data_const` for element-wise ops (constant values).
+Your benchmark is automatically discovered by `CMakeLists.txt` and compiled into a standalone executable. 
+
+Available macros in [bench/bench_harness.hpp](file:///home/kush26/Projects/simd-exp/bench/bench_harness.hpp):
+- `SIMD_BENCH_UNARY(...)`: For element-wise ops, registers Scalar, SIMD, and SIMD NT variants. Passes extra bounds/arguments to target functions if provided (e.g. clamp).
+- `SIMD_BENCH_UNARY_NO_NT(...)`: Same, but omits the NT store variant.
+- `SIMD_BENCH_REDUCTION(Name, ScalarFn, SimdFn, GenFn, NInputs)`: For reductions. `NInputs` is `1` (like `sum`) or `2` (like `dot_prod`).
+- `SIMD_BENCH_FIXED(Name, ScalarFn, SimdFn, SimdNtFn, TileSize)`: For fixed-dimension blocks (like transpose 4x4).
+
+---
+
+## 5. Correctness Testing
+
+Create a unit test file under `test/`. Use [test/test_harness.hpp](file:///home/kush26/Projects/simd-exp/test/test_harness.hpp) to avoid writing duplicate loops. Your test is automatically picked up by CMake.
+
+**`test/sigmoid_test.cpp`**:
+```cpp
+#include "test_harness.hpp"
+#include <simd/ops/sigmoid/scalar.hpp>
+#include <simd/ops/sigmoid/simd.hpp>
+#include <simd/ops/sigmoid/sigmoid.hpp>
+
+TEST(SigmoidTest, Scalar_KnownValues) {
+    float src[] = {0.0f};
+    float dst[1];
+    simd::impl::sigmoid_scalar(src, dst, 1);
+    EXPECT_FLOAT_EQ(dst[0], 0.5f);
+}
+
+TEST(SigmoidTest, Simd_MatchesScalar) {
+#if defined(SIMD_AVX2_ENABLED)
+    for (size_t n : kStdSizes) {
+        auto src = make_random(n, -10.f, 10.f);
+        std::vector<float> scalar_dst(n), simd_dst(n);
+        simd::impl::sigmoid_scalar(src.data(), scalar_dst.data(), n);
+        simd::impl::sigmoid_simd(src.data(), simd_dst.data(), n);
+        check_near(scalar_dst.data(), simd_dst.data(), n, 1e-5f, "n=" + std::to_string(n));
+    }
+#endif
+}
+
+TEST(SigmoidTest, Dispatcher_MatchesScalar) {
+    size_t n = 1024;
+    auto src = make_random(n, -10.f, 10.f);
+    std::vector<float> scalar_dst(n), dispatch_dst(n);
+    simd::impl::sigmoid_scalar(src.data(), scalar_dst.data(), n);
+    simd::sigmoid(src, dispatch_dst);
+    check_near(scalar_dst.data(), dispatch_dst.data(), n, 1e-5f, "sigmoid dispatcher");
+}
+```
+
+Standard helpers in [test/test_harness.hpp](file:///home/kush26/Projects/simd-exp/test/test_harness.hpp):
+- `kStdSizes`: `{1, 7, 8, 9, 1023, 1024, 1<<20}` - handles degenerate, tail, boundary, aligned, and large stress sizes.
+- `make_random(n, lo, hi)`, `make_const(n, val)`, `make_boundary_stress(n, lo, hi)`: Data generators.
+- `check_exact(a, b, n)`: Verifies floating point bitwise identity.
+- `check_near(a, b, n, tol)`: Verifies values within floating point absolute tolerances.
+- `check_scalar_near(a, b, tol)`: Checks single reduction outcomes.
 
 ---
 

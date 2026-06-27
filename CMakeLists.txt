@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
@@ -24,9 +25,12 @@ target_include_directories(simd
   INTERFACE $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_compile_features(simd INTERFACE cxx_std_23)
 
+find_package(OpenMP REQUIRED)
+target_link_libraries(simd INTERFACE OpenMP::OpenMP_CXX)
+
 set(ARCH_FLAGS "")
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
-  list(APPEND ARCH_FLAGS -mavx2 -mfma)
+  list(APPEND ARCH_FLAGS -mavx2 -mfma -mf16c)
 endif()
 
 function(add_simd_bench name source)
@@ -42,28 +46,8 @@ function(add_simd_test name source)
   add_test(NAME ${name} COMMAND ${name})
 endfunction()
 
-set(BENCH_SOURCES
-  bench/abs_bench.cpp
-  bench/clamp_bench.cpp
-  bench/dot_prod_bench.cpp
-  bench/mat_transpose_bench.cpp
-  bench/online_softmax_bench.cpp
-  bench/relu_bench.cpp
-  bench/softmax_bench.cpp
-  bench/sum_bench.cpp
-)
-
-set(TEST_SOURCES
-  test/abs_test.cpp
-  test/clamp_test.cpp
-  test/dot_prod_test.cpp
-  test/mat_transpose_test.cpp
-  test/math_utils_test.cpp
-  test/online_softmax_test.cpp
-  test/relu_test.cpp
-  test/softmax_test.cpp
-  test/sum_test.cpp
-)
+file(GLOB BENCH_SOURCES "bench/*_bench.cpp")
+file(GLOB TEST_SOURCES  "test/*_test.cpp")
 
 set(BENCH_TARGETS "")
 foreach(src ${BENCH_SOURCES})

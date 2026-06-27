@@ -1,5 +1,12 @@
 #pragma once
 
+#include <concepts>
+#include <cstdlib>
+#include <expected>
+#include <span>
+#include <system_error>
+#include <utility>
+
 #if defined(__AVX2__)
     #include <immintrin.h>
     #define SIMD_AVX2_ENABLED 1
@@ -9,11 +16,14 @@
     #define SIMD_WIDTH_BYTES 4
 #endif
 
-#include <cstdlib>
-#include <expected>
-#include <system_error>
+#if defined(__F16C__)
+    #define SIMD_F16C_ENABLED 1
+#endif
 
 namespace simd {
+
+template <typename T>
+concept Float = std::floating_point<T>;
 
 // Aligned allocation utility for Non-Temporal stores
 // Returns expected<void*, std::errc> — check has_value() before use.

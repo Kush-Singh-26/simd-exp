@@ -9,6 +9,7 @@ namespace impl {
 inline void transpose_scalar(const float* src, float* dst, size_t rows, size_t cols) {
     std::mdspan<const float, std::dextents<size_t, 2>> src_md(src, rows, cols);
     std::mdspan<float, std::dextents<size_t, 2>> dst_md(dst, cols, rows);
+    #pragma omp parallel for collapse(2) if(rows * cols >= 4096)
     for (size_t i = 0; i < rows; i++) {
         for (size_t j = 0; j < cols; j++) {
             dst_md[j, i] = src_md[i, j];

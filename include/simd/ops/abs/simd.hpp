@@ -7,28 +7,29 @@ namespace simd {
 namespace impl {
 
 #if defined(SIMD_AVX2_ENABLED)
-inline void abs_simd(const float* src, float* dst, size_t n) {
-    size_t i = 0;
+template <typename StoreFn>
+void abs_impl(const float* src, float* dst, size_t n, StoreFn store) {
     __m256 bitmask = _mm256_set1_ps(-0.0f);
-    for (; i + 8 <= n; i += 8) {
+    size_t n_simd = n / 8;
+    #pragma omp parallel for firstprivate(store) if(n_simd >= 128)
+    for (size_t idx = 0; idx < n_simd; idx++) {
+        size_t i = idx * 8;
         __m256 vx = _mm256_loadu_ps(src + i);
-        _mm256_storeu_ps(dst + i, _mm256_andnot_ps(bitmask, vx));
+        store(dst + i, _mm256_andnot_ps(bitmask, vx));
     }
-    for (; i < n; i++) {
+    for (size_t i = n_simd * 8; i < n; i++) {
         dst[i] = std::abs(src[i]);
     }
 }
 
+inline void abs_simd(const float* src, float* dst, size_t n) {
+    abs_impl(src, dst, n, [](float* p, __m256 v) { _mm256_storeu_ps(p, v); });
+}
+
 inline void abs_simd_nt(const float* src, float* dst, size_t n) {
-    size_t i = 0;
-    __m256 bitmask = _mm256_set1_ps(-0.0f);
-    for (; i + 8 <= n; i += 8) {
-        __m256 vx = _mm256_loadu_ps(src + i);
-        _mm256_stream_ps(dst + i, _mm256_andnot_ps(bitmask, vx));
-    }
-    for (; i < n; i++) {
-        dst[i] = std::abs(src[i]);
-    }
+    // Uses storeu (not stream) because _mm256_stream_ps requires 32-byte alignment
+    // which std::vector does not guarantee.
+    abs_impl(src, dst, n, [](float* p, __m256 v) { _mm256_storeu_ps(p, v); });
 }
 #endif
 

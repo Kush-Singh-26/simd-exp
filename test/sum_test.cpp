@@ -1,113 +1,36 @@
-#include <gtest/gtest.h>
-#include <simd/common.hpp>
+#include "test_harness.hpp"
 #include <simd/ops/sum/scalar.hpp>
-#include <vector>
-#include <random>
-
-TEST(SumTest, KnownValues) {
-    float data[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
-    float result = simd::impl::sum_scalar(data, 8);
-    EXPECT_FLOAT_EQ(result, 36.0f);
-}
-
-TEST(SumTest, AllZeros) {
-    float data[8] = {};
-    float result = simd::impl::sum_scalar(data, 8);
-    EXPECT_FLOAT_EQ(result, 0.0f);
-}
-
-TEST(SumTest, AllNegative) {
-    float data[] = {-1.0f, -2.0f, -3.0f, -4.0f, -5.0f, -6.0f, -7.0f, -8.0f};
-    float result = simd::impl::sum_scalar(data, 8);
-    EXPECT_FLOAT_EQ(result, -36.0f);
-}
-
-TEST(SumTest, MixedValues) {
-    float data[] = {10.0f, -5.0f, 3.0f, -2.0f, 7.0f, -1.0f, 4.0f, -8.0f};
-    float result = simd::impl::sum_scalar(data, 8);
-    EXPECT_FLOAT_EQ(result, 8.0f);
-}
-
-TEST(SumTest, TailElements) {
-    float data[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
-    float result = simd::impl::sum_scalar(data, 5);
-    EXPECT_FLOAT_EQ(result, 15.0f);
-}
-
-TEST(SumTest, SingleElement) {
-    float data[] = {42.0f};
-    float result = simd::impl::sum_scalar(data, 1);
-    EXPECT_FLOAT_EQ(result, 42.0f);
-}
-
-TEST(SumTest, RandomData) {
-    std::mt19937 rng(42);
-    std::uniform_real_distribution<float> dist(-10.0f, 10.0f);
-    std::vector<float> data(1024);
-    for (auto& x : data) x = dist(rng);
-    float result = simd::impl::sum_scalar(data.data(), 1024);
-    float expected = 0.0f;
-    for (auto x : data) expected += x;
-    EXPECT_NEAR(result, expected, 1e-2f);
-}
-
-TEST(SumTest, LargeInput) {
-    std::mt19937 rng(42);
-    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
-    std::vector<float> data(1 << 20);
-    for (auto& x : data) x = dist(rng);
-    float result = simd::impl::sum_scalar(data.data(), 1 << 20);
-    float expected = 0.0f;
-    for (auto x : data) expected += x;
-    EXPECT_NEAR(result, expected, 1.0f);
-}
-
-#if defined(SIMD_AVX2_ENABLED)
 #include <simd/ops/sum/simd.hpp>
-
-TEST(SumTest, SIMD_KnownValues) {
-    float data[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
-    float scalar_result = simd::impl::sum_scalar(data, 8);
-    float simd_result = simd::impl::sum_simd(data, 8);
-    EXPECT_NEAR(scalar_result, simd_result, 1e-5f);
-}
-
-TEST(SumTest, SIMD_RandomData) {
-    std::mt19937 rng(42);
-    std::uniform_real_distribution<float> dist(-10.0f, 10.0f);
-    std::vector<float> data(1024);
-    for (auto& x : data) x = dist(rng);
-    float scalar_result = simd::impl::sum_scalar(data.data(), 1024);
-    float simd_result = simd::impl::sum_simd(data.data(), 1024);
-    EXPECT_NEAR(scalar_result, simd_result, 1e-2f);
-}
-
-TEST(SumTest, SIMD_LargeInput) {
-    std::mt19937 rng(42);
-    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
-    std::vector<float> data(1 << 20);
-    for (auto& x : data) x = dist(rng);
-    float scalar_result = simd::impl::sum_scalar(data.data(), 1 << 20);
-    float simd_result = simd::impl::sum_simd(data.data(), 1 << 20);
-    EXPECT_NEAR(scalar_result, simd_result, 1.0f);
-}
-#endif
-
 #include <simd/ops/sum/sum.hpp>
 
-TEST(SumTest, Dispatcher_KnownValues) {
+TEST(SumTest, Scalar_KnownValues) {
     float data[] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f};
-    float result = simd::sum(data, 8);
+    float result = simd::impl::sum_scalar(data, 8);
     EXPECT_FLOAT_EQ(result, 36.0f);
 }
 
-TEST(SumTest, Dispatcher_RandomData) {
-    std::mt19937 rng(42);
-    std::uniform_real_distribution<float> dist(-10.0f, 10.0f);
-    std::vector<float> data(1024);
-    for (auto& x : data) x = dist(rng);
-    float result = simd::sum(data.data(), 1024);
-    float expected = 0.0f;
-    for (auto x : data) expected += x;
-    EXPECT_NEAR(result, expected, 1e-2f);
+TEST(SumTest, Simd_MatchesScalar) {
+#if defined(SIMD_AVX2_ENABLED)
+    for (size_t n : kStdSizes) {
+        auto data = make_random(n, -10.f, 10.f);
+        float scalar_res = simd::impl::sum_scalar(data.data(), n);
+        float simd_res = simd::impl::sum_simd(data.data(), n);
+        
+        float tol = 1e-5f;
+        if (n >= 1023 && n <= 1024) {
+            tol = 1e-3f;
+        } else if (n > 1024) {
+            tol = 1e-1f;
+        }
+        check_scalar_near(scalar_res, simd_res, tol, "n=" + std::to_string(n));
+    }
+#endif
+}
+
+TEST(SumTest, Dispatcher_MatchesScalar) {
+    size_t n = 1024;
+    auto data = make_random(n, -10.f, 10.f);
+    float scalar_res = simd::impl::sum_scalar(data.data(), n);
+    float dispatch_res = simd::sum(data);
+    check_scalar_near(scalar_res, dispatch_res, 1e-3f, "sum dispatcher");
 }

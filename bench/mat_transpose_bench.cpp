@@ -1,54 +1,60 @@
-#include <benchmark/benchmark.h>
+#include "bench_harness.hpp"
 #include <simd/simd.hpp>
 #include <simd/ops/mat_transpose/mat_transpose.hpp>
 #include <cstddef>
 #include <vector>
 
-static void BM_Transpose_Scalar(benchmark::State& state) {
-  size_t n = state.range(0);
-  std::vector<float> src(n * 16);
-  std::vector<float> dst(n * 16);
-  for (size_t i = 0; i < n * 16; i++) src[i] = static_cast<float>(i);
-  for (auto _ : state) {
-    benchmark::DoNotOptimize(src.data());
-    for (size_t i = 0; i < n; i++)
-      simd::impl::transpose_scalar(src.data() + i * 16, dst.data() + i * 16, 4, 4);
-    benchmark::DoNotOptimize(dst.data());
-  }
-}
-BENCHMARK(BM_Transpose_Scalar)->Arg(1<<14)->Arg(1<<10)->Arg(1<<6);
+// 4x4 matrix transpose benchmarks (Scalar, SIMD, SIMD NT)
+SIMD_BENCH_FIXED(Transpose,
+                 simd::impl::transpose_scalar,
+                 simd::impl::transpose_simd,
+                 simd::impl::transpose_simd_nt,
+                 4)
+
+// ── 8x8 AVX2 transpose benchmarks ────────────────────────────────────────────
+// These are in addition to the 4x4 fixed-size macro benchmarks above.
 
 #if defined(SIMD_AVX2_ENABLED)
-static void BM_Transpose_Simd(benchmark::State& state) {
-  size_t n = state.range(0);
-  std::vector<float> src(n * 16);
-  std::vector<float> dst(n * 16);
-  for (size_t i = 0; i < n * 16; i++) src[i] = static_cast<float>(i);
+#define SIMD_BENCH_FIXED_8x8_SIMD(Name, SimdFn) \
+static void BM_##Name##_Simd(benchmark::State& state) { \
+  size_t n = state.range(0); \
+  size_t size = 64; \
+  std::vector<float> src(n * size); \
+  std::vector<float> dst(n * size); \
+  for (size_t i = 0; i < n * size; i++) src[i] = static_cast<float>(i); \
+  for (auto _ : state) { \
+    benchmark::DoNotOptimize(src.data()); \
+    for (size_t i = 0; i < n; i++) \
+      SimdFn(src.data() + i * size, dst.data() + i * size); \
+    benchmark::DoNotOptimize(dst.data()); \
+  } \
+} \
+BENCHMARK(BM_##Name##_Simd)->Arg(1<<14)->Arg(1<<10)->Arg(1<<6);
+
+SIMD_BENCH_FIXED_8x8_SIMD(Transpose_8x8, simd::impl::transpose8x8_simd)
+SIMD_BENCH_FIXED_8x8_SIMD(Transpose_8x8_Dispatch, simd::impl::transpose8x8_simd)
+
+// Strided variant: transpose 8x8 blocks within a larger 256x256 matrix
+static void BM_Transpose_8x8_Strided(benchmark::State& state) {
+  size_t matrix_dim = 256;
+  size_t blocks = (matrix_dim / 8) * (matrix_dim / 8);
+  std::vector<float> src(matrix_dim * matrix_dim);
+  std::vector<float> dst(matrix_dim * matrix_dim);
+  for (size_t i = 0; i < src.size(); i++) src[i] = static_cast<float>(i);
   for (auto _ : state) {
     benchmark::DoNotOptimize(src.data());
-    for (size_t i = 0; i < n; i++)
-      simd::impl::transpose_simd(src.data() + i * 16, dst.data() + i * 16);
+    for (size_t bi = 0; bi < matrix_dim; bi += 8) {
+      for (size_t bj = 0; bj < matrix_dim; bj += 8) {
+        simd::impl::transpose8x8_strided_simd(
+            src.data() + bi * matrix_dim + bj,
+            dst.data() + bj * matrix_dim + bi,
+            matrix_dim, matrix_dim);
+      }
+    }
     benchmark::DoNotOptimize(dst.data());
   }
 }
-BENCHMARK(BM_Transpose_Simd)->Arg(1<<14)->Arg(1<<10)->Arg(1<<6);
-
-static void BM_Transpose_Simd_NT(benchmark::State& state) {
-  size_t n = state.range(0);
-  std::vector<float> src(n * 16);
-  auto alloc_result = simd::aligned_alloc(16, n * 16 * sizeof(float));
-  if (!alloc_result.has_value()) return;
-  float* dst = static_cast<float*>(alloc_result.value());
-  for (size_t i = 0; i < n * 16; i++) src[i] = static_cast<float>(i);
-  for (auto _ : state) {
-    benchmark::DoNotOptimize(src.data());
-    for (size_t i = 0; i < n; i++)
-      simd::impl::transpose_simd_nt(src.data() + i * 16, dst + i * 16);
-    benchmark::DoNotOptimize(dst);
-  }
-  simd::aligned_free(dst);
-}
-BENCHMARK(BM_Transpose_Simd_NT)->Arg(1<<14)->Arg(1<<10)->Arg(1<<6);
+BENCHMARK(BM_Transpose_8x8_Strided);
 #endif
 
 // ── Non-4x4 benchmarks (C++23 mdspan path) ───────────────────────────────────
